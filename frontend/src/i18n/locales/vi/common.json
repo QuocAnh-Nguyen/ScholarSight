@@ -1,0 +1,138 @@
+{
+  "app": {
+    "brand": "ScholarSight",
+    "tagline": "Tư vấn tuyển sinh thông minh",
+    "auth": {
+      "title": "Đăng nhập ScholarSight",
+      "hint": "Nhập thông tin tài khoản của bạn",
+      "invalid": "Email hoặc mật khẩu không đúng",
+      "placeholder": "Mật khẩu",
+      "submit": "Đăng nhập",
+      "emailLabel": "Email",
+      "emailPlaceholder": "email@example.com",
+      "passwordLabel": "Mật khẩu",
+      "loginTab": "Đăng nhập",
+      "registerTab": "Đăng ký",
+      "fullNameLabel": "Họ và tên",
+      "fullNamePlaceholder": "Nguyễn Văn A",
+      "registering": "Đang đăng ký...",
+      "loggingIn": "Đang đăng nhập...",
+      "switchToLogin": "Đã có tài khoản? Đăng nhập",
+      "switchToRegister": "Chưa có tài khoản? Đăng ký",
+      "registerSuccess": "Đăng ký thành công! Chào mừng đến với ScholarSight."
+    },
+    "loading": {
+      "connecting": "Đang kết nối ScholarSight..."
+    },
+    "error": {
+      "title": "Lỗi kết nối",
+      "gatewayHint": "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng."
+    },
+    "documentTitle": {
+      "base": "ScholarSight",
+      "chat": "{{title}} — ScholarSight"
+    }
+  },
+  "nav": {
+    "chat": "Hỏi đáp",
+    "probability": "Đánh giá cơ hội",
+    "roadmap": "Lộ trình",
+    "settings": "Cài đặt"
+  },
+  "chat": {
+    "newChat": "Trò chuyện mới",
+    "placeholder": "Đặt câu hỏi về tuyển sinh...",
+    "send": "Gửi",
+    "thinking": "Đang suy nghĩ...",
+    "emptyTitle": "Hỏi đáp Tuyển sinh",
+    "emptyHint": "Hỏi về điểm chuẩn, phương thức xét tuyển, chỉ tiêu",
+    "emptyExample": "VD: \"Điểm chuẩn ngành Khoa học Máy tính ĐHBK Hà Nội 2023?\"",
+    "sourceLabel": "Nguồn",
+    "sourceScore": "Độ phù hợp: {{score}}%",
+    "humanFallback": "Câu hỏi này cần tư vấn chuyên sâu từ chuyên gia.",
+    "disclaimer": "⚠️ Đây là công cụ phân tích và gợi ý. Quyết định cuối cùng thuộc về bạn.",
+    "fallbackTitle": "Chat {{id}}"
+  },
+  "probability": {
+    "title": "Đánh giá Cơ hội Trúng tuyển",
+    "subtitle": "Nhập điểm và nguyện vọng để nhận đánh giá",
+    "scoreLabel": "Điểm của bạn",
+    "universityLabel": "Trường đại học",
+    "universityPlaceholder": "-- Chọn trường --",
+    "majorLabel": "Ngành học",
+    "majorPlaceholder": "VD: Khoa học Máy tính",
+    "methodLabel": "Phương thức xét tuyển",
+    "assess": "Đánh giá",
+    "assessing": "Đang đánh giá...",
+    "score": "Điểm của bạn",
+    "cutoff": "Điểm chuẩn",
+    "tier": {
+      "safety": "An toàn",
+      "target": "Mục tiêu",
+      "reach": "Thách thức"
+    },
+    "percentile": "Percentile: {{rank}}%",
+    "historyTitle": "Lịch sử đánh giá",
+    "noHistory": "Chưa có đánh giá nào",
+    "disclaimer": "⚠️ Dữ liệu dựa trên thống kê lịch sử. Kết quả thực tế có thể khác biệt."
+  },
+  "roadmap": {
+    "title": "Lộ trình Cá nhân",
+    "addTask": "+ Thêm",
+    "taskPlaceholder": "Công việc mới...",
+    "allMonths": "Tất cả",
+    "columns": {
+      "todo": "Cần làm",
+      "in_progress": "Đang làm",
+      "done": "Hoàn thành"
+    },
+    "createTitle": "Thêm công việc mới",
+    "createDescription": "Mô tả (tùy chọn)",
+    "createCategory": "Danh mục",
+    "createMonth": "Tháng",
+    "create": "Tạo",
+    "cancel": "Hủy",
+    "deleteConfirm": "Xóa công việc \"{{title}}\"?",
+    "deleteWarning": "Hành động này không thể hoàn tác.",
+    "confirmDelete": "Xóa",
+    "suggest": "Gợi ý từ AI",
+    "suggesting": "Đang tạo gợi ý...",
+    "categories": {
+      "application": "Nộp hồ sơ",
+      "exam_prep": "Ôn thi",
+      "document": "Giấy tờ",
+      "other": "Khác"
+    }
+  },
+  "settings": {
+    "sidebar": {
+      "title": "Cài đặt"
+    },
+    "theme": {
+      "label": "Giao diện",
+      "light": "Sáng",
+      "dark": "Tối",
+      "system": "Hệ thống"
+    },
+    "language": {
+      "label": "Ngôn ngữ"
+    },
+    "account": {
+      "label": "Tài khoản",
+      "logout": "Đăng xuất",
+      "email": "Email",
+      "name": "Tên"
+    },
+    "back": "← Quay lại"
+  },
+  "common": {
+    "cancel": "Hủy",
+    "save": "Lưu",
+    "delete": "Xóa",
+    "close": "Đóng",
+    "back": "Quay lại",
+    "loading": "Đang tải...",
+    "error": "Đã xảy ra lỗi",
+    "retry": "Thử lại"
+  }
+}

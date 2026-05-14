@@ -1,0 +1,138 @@
+{
+  "app": {
+    "brand": "ScholarSight",
+    "tagline": "Intelligent Admissions Advisory",
+    "auth": {
+      "title": "Sign in to ScholarSight",
+      "hint": "Enter your account credentials",
+      "invalid": "Invalid email or password",
+      "placeholder": "Password",
+      "submit": "Sign In",
+      "emailLabel": "Email",
+      "emailPlaceholder": "email@example.com",
+      "passwordLabel": "Password",
+      "loginTab": "Sign In",
+      "registerTab": "Register",
+      "fullNameLabel": "Full Name",
+      "fullNamePlaceholder": "John Doe",
+      "registering": "Registering...",
+      "loggingIn": "Signing in...",
+      "switchToLogin": "Already have an account? Sign in",
+      "switchToRegister": "Don't have an account? Register",
+      "registerSuccess": "Registration successful! Welcome to ScholarSight."
+    },
+    "loading": {
+      "connecting": "Connecting to ScholarSight..."
+    },
+    "error": {
+      "title": "Connection Error",
+      "gatewayHint": "Cannot connect to server. Please check your network connection."
+    },
+    "documentTitle": {
+      "base": "ScholarSight",
+      "chat": "{{title}} — ScholarSight"
+    }
+  },
+  "nav": {
+    "chat": "Q&A",
+    "probability": "Admission Chances",
+    "roadmap": "Roadmap",
+    "settings": "Settings"
+  },
+  "chat": {
+    "newChat": "New Chat",
+    "placeholder": "Ask about admissions...",
+    "send": "Send",
+    "thinking": "Thinking...",
+    "emptyTitle": "Admissions Q&A",
+    "emptyHint": "Ask about cutoffs, admission methods, quotas",
+    "emptyExample": "E.g. \"What's the CS cutoff at HUST 2023?\"",
+    "sourceLabel": "Source",
+    "sourceScore": "Match: {{score}}%",
+    "humanFallback": "This question requires in-depth consultation from an expert.",
+    "disclaimer": "⚠️ This is an analytical tool. Final decisions are yours.",
+    "fallbackTitle": "Chat {{id}}"
+  },
+  "probability": {
+    "title": "Admission Probability Assessment",
+    "subtitle": "Enter your score and preferences for evaluation",
+    "scoreLabel": "Your Score",
+    "universityLabel": "University",
+    "universityPlaceholder": "-- Select --",
+    "majorLabel": "Major",
+    "majorPlaceholder": "e.g. Computer Science",
+    "methodLabel": "Admission Method",
+    "assess": "Assess",
+    "assessing": "Assessing...",
+    "score": "Your Score",
+    "cutoff": "Cutoff",
+    "tier": {
+      "safety": "Safety",
+      "target": "Target",
+      "reach": "Reach"
+    },
+    "percentile": "Percentile: {{rank}}%",
+    "historyTitle": "Assessment History",
+    "noHistory": "No assessments yet",
+    "disclaimer": "⚠️ Based on historical data. Actual results may differ."
+  },
+  "roadmap": {
+    "title": "Personal Roadmap",
+    "addTask": "+ Add",
+    "taskPlaceholder": "New task...",
+    "allMonths": "All",
+    "columns": {
+      "todo": "To Do",
+      "in_progress": "In Progress",
+      "done": "Done"
+    },
+    "createTitle": "New Task",
+    "createDescription": "Description (optional)",
+    "createCategory": "Category",
+    "createMonth": "Month",
+    "create": "Create",
+    "cancel": "Cancel",
+    "deleteConfirm": "Delete \"{{title}}\"?",
+    "deleteWarning": "This action cannot be undone.",
+    "confirmDelete": "Delete",
+    "suggest": "AI Suggestions",
+    "suggesting": "Generating suggestions...",
+    "categories": {
+      "application": "Application",
+      "exam_prep": "Exam Prep",
+      "document": "Documents",
+      "other": "Other"
+    }
+  },
+  "settings": {
+    "sidebar": {
+      "title": "Settings"
+    },
+    "theme": {
+      "label": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "language": {
+      "label": "Language"
+    },
+    "account": {
+      "label": "Account",
+      "logout": "Sign Out",
+      "email": "Email",
+      "name": "Name"
+    },
+    "back": "← Back"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "close": "Close",
+    "back": "Back",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry"
+  }
+}
