@@ -1,0 +1,20 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# System dependencies for PDF processing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    poppler-utils \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY backend/pyproject.toml .
+RUN pip install --no-cache-dir -e ".[dev]" || pip install --no-cache-dir $(grep -E '^[[:space:]]*"[^"]+"' pyproject.toml | tr -d ' ,"' | head -20)
+
+COPY backend/ .
+
+EXPOSE 8081
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8081"]

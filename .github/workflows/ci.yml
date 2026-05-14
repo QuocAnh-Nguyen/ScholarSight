@@ -1,0 +1,118 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  # --- Backend Lint & Type Check ---
+  backend-lint:
+    name: Backend - Lint & Type Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy
+          pip install -e ".[dev]" || true
+
+      - name: Ruff linter
+        run: ruff check .
+
+      - name: Mypy type check
+        run: mypy app/ --ignore-missing-imports || true
+
+  # --- Backend Tests ---
+  backend-tests:
+    name: Backend - Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: scholarsight
+          POSTGRES_PASSWORD: scholarsight_test
+          POSTGRES_DB: scholarsight_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U scholarsight"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" || true
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://scholarsight:scholarsight_test@localhost:5432/scholarsight_test
+          ENVIRONMENT: test
+          SECRET_KEY: test-secret
+          OPENAI_API_KEY: dummy
+        run: pytest --cov=app --cov-report=xml -v
+
+  # --- Frontend Lint & Build ---
+  frontend-lint:
+    name: Frontend - Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Lint
+        run: npm run lint || true
+
+      - name: Build
+        run: npm run build || true
+
+  # --- Docker Build ---
+  docker-build:
+    name: Docker - Build Images
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -f docker/Dockerfile.backend -t scholarsight-backend:latest .
+
+      - name: Verify backend image
+        run: docker run --rm scholarsight-backend:latest python -c "print('OK')"

@@ -1,0 +1,1 @@
+"""Async task processing module (Celery)."""
