@@ -1,3 +1,4 @@
+import { LandingNav } from "@/components/landing/LandingNav";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { ShowcaseSection } from "@/components/landing/ShowcaseSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
@@ -18,6 +19,7 @@ export function LandingPage({
 }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-background overflow-auto">
+      <LandingNav />
       <HeroSection
         onLogin={onLogin}
         onRegister={onRegister}
