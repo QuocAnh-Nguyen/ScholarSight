@@ -14,7 +14,7 @@ export function HeroSection({
   submitting,
 }: HeroSectionProps) {
   return (
-    <section className="py-28 lg:py-36">
+    <section className="py-20 lg:py-24">
       <div className="mx-auto max-w-7xl px-4">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-20">
           {/* Left column — typography & value proposition */}

@@ -14,20 +14,20 @@ export function ChatMock() {
         <div className="max-w-[90%] rounded-2xl rounded-bl-md bg-secondary px-4 py-3 text-sm text-secondary-foreground shadow-sm space-y-3">
           <p className="leading-relaxed">
             Based on the{" "}
-            <strong>2024 MoET Admissions Regulation</strong>
-            <CitationBadge num={1} />, your score of{" "}
+            <strong>2025 MoET data</strong>
+            <CitationBadge num={1} />, the cutoff for IT at{" "}
+            <strong>HUST</strong> was{" "}
+            <strong>27.2</strong>
+            <CitationBadge num={2} />. You have a solid chance. Your score of{" "}
             <strong>27.5</strong> places you in the{" "}
-            <strong>85th percentile</strong> for IT at{" "}
-            <strong>HUST</strong>
-            <CitationBadge num={2} />. This falls within the{" "}
+            <strong>85th percentile</strong> — within the{" "}
             <span className="font-semibold text-amber-600">Target 🟡</span>{" "}
-            tier — competitive but achievable.
+            tier, competitive but achievable.
           </p>
           <p className="leading-relaxed">
-            The 2024 cutoff for{" "}
-            <strong>Computer Science (IT)</strong> was{" "}
-            <strong>27.0</strong>, and the historical trend shows a slight
-            upward movement of +0.3 points per year.
+            The 2025 cutoff for{" "}
+            <strong>Computer Science (IT)</strong> shows a slight
+            upward trend of +0.3 points per year compared to 2024.
           </p>
 
           {/* Citation reference chips */}
@@ -36,13 +36,13 @@ export function ChatMock() {
               <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-primary/10 text-[10px] font-bold text-primary">
                 1
               </span>
-              MoET 2024 Admissions Regulation
+              MoET 2025 Admissions Regulation
             </span>
             <span className="inline-flex items-center gap-1 rounded-md bg-background px-2 py-1 text-xs text-muted-foreground border border-border/50">
               <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-primary/10 text-[10px] font-bold text-primary">
                 2
               </span>
-              HUST IT Cutoff Scores 2023–2024
+              HUST IT Cutoff Scores 2024–2025
             </span>
           </div>
         </div>

@@ -3,8 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
+  DropdownMenu,  DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -27,10 +26,17 @@ export function LandingNav() {
   return (
     <nav className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-        {/* Left: Brand */}
-        <span className="text-sm font-bold tracking-tight text-foreground">
-          AdmissionsAI
-        </span>
+        {/* Left: Brand with logo */}
+        <div className="flex items-center gap-2.5">
+          <img
+            src="/brand/logo.png"
+            alt="AdmissionsAI Logo"
+            className="h-8 w-8 rounded-md object-contain"
+          />
+          <span className="text-lg font-extrabold tracking-tight text-foreground">
+            AdmissionsAI
+          </span>
+        </div>
 
         {/* Right: Theme toggle + Language dropdown */}
         <div className="flex items-center gap-2">

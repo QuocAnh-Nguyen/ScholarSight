@@ -11,6 +11,7 @@
       "emailLabel": "Email",
       "emailPlaceholder": "email@example.com",
       "passwordLabel": "Mật khẩu",
+      "passwordPlaceholder": "Nhập mật khẩu",
       "loginTab": "Đăng nhập",
       "registerTab": "Đăng ký",
       "fullNameLabel": "Họ và tên",
@@ -33,11 +34,39 @@
       "chat": "{{title}} — ScholarSight"
     }
   },
+  "auth": {
+    "login": "Đăng nhập",
+    "register": "Đăng ký",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Mật khẩu",
+    "fullNamePlaceholder": "Họ và tên",
+    "invalidCredentials": "Email hoặc mật khẩu không đúng",
+    "registrationFailed": "Đăng ký thất bại. Vui lòng thử lại.",
+    "getStarted": "Bắt đầu",
+    "signingIn": "Đang đăng nhập...",
+    "registering": "Đang đăng ký...",
+    "trustText": "* Được tin dùng bởi hàng nghìn học sinh trung học."
+  },
   "nav": {
     "chat": "Hỏi đáp",
     "probability": "Đánh giá cơ hội",
     "roadmap": "Lộ trình",
     "settings": "Cài đặt"
+  },
+  "sidebar": {
+    "collapse": "Thu gọn",
+    "expand": "Mở rộng",
+    "newSession": "Phiên đọc mới",
+    "searchSessions": "Tìm kiếm phiên...",
+    "noSessions": "Chưa có phiên đọc nào",
+    "recentSessions": "Phiên gần đây",
+    "pinSession": "Ghim phiên",
+    "unpinSession": "Bỏ ghim",
+    "renameSession": "Đổi tên phiên",
+    "deleteSession": "Xóa phiên",
+    "renameTitle": "Tên phiên",
+    "renamePlaceholder": "Nhập tên phiên...",
+    "guest": "Khách"
   },
   "chat": {
     "newChat": "Trò chuyện mới",
@@ -52,6 +81,34 @@
     "humanFallback": "Câu hỏi này cần tư vấn chuyên sâu từ chuyên gia.",
     "disclaimer": "⚠️ Đây là công cụ phân tích và gợi ý. Quyết định cuối cùng thuộc về bạn.",
     "fallbackTitle": "Chat {{id}}"
+  },
+  "templates": {
+    "title": "Mẫu câu hỏi",
+    "summarize": "Tóm tắt bài báo",
+    "summarizeDesc": "Cung cấp tóm tắt có cấu trúc về mục tiêu, phương pháp, kết quả và kết luận.",
+    "methodology": "Phân tích phương pháp",
+    "methodologyDesc": "Đánh giá phê bình phương pháp nghiên cứu, điểm mạnh và điểm yếu.",
+    "compare": "So sánh bài báo",
+    "compareDesc": "So sánh cách tiếp cận, kết quả và đóng góp giữa các bài báo.",
+    "findings": "Trích xuất kết quả chính",
+    "findingsDesc": "Liệt kê và sắp xếp các đóng góp chính theo mức độ quan trọng.",
+    "limitations": "Xác định hạn chế",
+    "limitationsDesc": "Xác định các hạn chế được thừa nhận và tiềm ẩn trong nghiên cứu.",
+    "citations": "Tạo trích dẫn",
+    "citationsDesc": "Định dạng trích dẫn theo kiểu APA, MLA và Chicago.",
+    "literature": "Tổng quan tài liệu",
+    "literatureDesc": "Tổng hợp các phát hiện và mối liên hệ giữa các công trình liên quan.",
+    "future": "Hướng nghiên cứu tiếp",
+    "futureDesc": "Đề xuất các hướng nghiên cứu tiềm năng và câu hỏi mở.",
+    "useTemplate": "Dùng mẫu"
+  },
+  "session": {
+    "generating": "Đang tạo...",
+    "newSession": "Phiên đọc mới"
+  },
+  "keyword": {
+    "placeholder": "Nhập từ khóa và nhấn Enter...",
+    "duplicate": "Từ khóa đã tồn tại"
   },
   "probability": {
     "title": "Đánh giá Cơ hội Trúng tuyển",

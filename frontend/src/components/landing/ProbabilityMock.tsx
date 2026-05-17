@@ -1,9 +1,34 @@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 
 export function ProbabilityMock() {
   return (
     <div className="flex flex-col gap-5 p-5">
+      {/* Dummy dropdowns — mock selection */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground">
+            University
+          </label>
+          <Input
+            value="Hanoi Univ. of Science & Tech"
+            readOnly
+            className="h-9 text-xs cursor-default bg-muted/30"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground">
+            Major
+          </label>
+          <Input
+            value="Computer Science (IT)"
+            readOnly
+            className="h-9 text-xs cursor-default bg-muted/30"
+          />
+        </div>
+      </div>
+
       {/* Tier badge */}
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">Your Tier:</span>

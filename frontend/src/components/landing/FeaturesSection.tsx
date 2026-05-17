@@ -3,7 +3,7 @@ import { FeatureCard } from "@/components/landing/FeatureCard";
 
 export function FeaturesSection() {
   return (
-    <section className="py-28">
+    <section className="py-20">
       <div className="mx-auto max-w-7xl px-4">
         <h2 className="text-3xl font-bold tracking-tight text-foreground">
           Why choose AdmissionsAI

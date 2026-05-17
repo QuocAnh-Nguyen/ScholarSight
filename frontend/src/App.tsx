@@ -53,7 +53,6 @@ function AppShell() {
     }
   }, [desktopSidebarOpen]);
 
-  const closeDesktopSidebar = useCallback(() => setDesktopSidebarOpen(false), []);
   const closeMobileSidebar = useCallback(() => setMobileSidebarOpen(false), []);
 
   const toggleSidebar = useCallback(() => {
@@ -137,6 +136,8 @@ function AppShell() {
     activeView: view,
     onSelectView: handleSelectView,
     onLogout: handleLogout,
+    collapsed: !desktopSidebarOpen,
+    onCollapse: toggleSidebar,
   };
 
   return (
@@ -157,7 +158,7 @@ function AppShell() {
           )}
           style={{ width: SIDEBAR_WIDTH }}
         >
-          <Sidebar {...sidebarProps} onCollapse={closeDesktopSidebar} />
+          <Sidebar {...sidebarProps} />
         </div>
       </aside>
 
@@ -169,7 +170,7 @@ function AppShell() {
           className="p-0 lg:hidden"
           style={{ width: SIDEBAR_WIDTH, maxWidth: SIDEBAR_WIDTH }}
         >
-          <Sidebar {...sidebarProps} onCollapse={closeMobileSidebar} />
+          <Sidebar {...sidebarProps} collapsed={false} onCollapse={closeMobileSidebar} />
         </SheetContent>
       </Sheet>
 

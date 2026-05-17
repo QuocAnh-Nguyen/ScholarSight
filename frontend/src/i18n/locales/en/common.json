@@ -11,6 +11,7 @@
       "emailLabel": "Email",
       "emailPlaceholder": "email@example.com",
       "passwordLabel": "Password",
+      "passwordPlaceholder": "Enter your password",
       "loginTab": "Sign In",
       "registerTab": "Register",
       "fullNameLabel": "Full Name",
@@ -33,11 +34,39 @@
       "chat": "{{title}} — ScholarSight"
     }
   },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Password",
+    "fullNamePlaceholder": "Full Name",
+    "invalidCredentials": "Invalid email or password",
+    "registrationFailed": "Registration failed. Please try again.",
+    "getStarted": "Get Started",
+    "signingIn": "Signing in...",
+    "registering": "Registering...",
+    "trustText": "* Trusted by thousands of high school students."
+  },
   "nav": {
     "chat": "Q&A",
     "probability": "Admission Chances",
     "roadmap": "Roadmap",
     "settings": "Settings"
+  },
+  "sidebar": {
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "newSession": "New Reading Session",
+    "searchSessions": "Search sessions...",
+    "noSessions": "No reading sessions yet",
+    "recentSessions": "Recent Sessions",
+    "pinSession": "Pin Session",
+    "unpinSession": "Unpin Session",
+    "renameSession": "Rename Session",
+    "deleteSession": "Delete Session",
+    "renameTitle": "Session Name",
+    "renamePlaceholder": "Enter session name...",
+    "guest": "Guest"
   },
   "chat": {
     "newChat": "New Chat",
@@ -52,6 +81,34 @@
     "humanFallback": "This question requires in-depth consultation from an expert.",
     "disclaimer": "⚠️ This is an analytical tool. Final decisions are yours.",
     "fallbackTitle": "Chat {{id}}"
+  },
+  "templates": {
+    "title": "Query Templates",
+    "summarize": "Summarize Paper",
+    "summarizeDesc": "Provide a structured summary covering objectives, methods, findings, and conclusions.",
+    "methodology": "Analyze Methodology",
+    "methodologyDesc": "Critically assess the research approach, strengths, and weaknesses.",
+    "compare": "Compare Papers",
+    "compareDesc": "Compare approaches, findings, and contributions across papers.",
+    "findings": "Extract Key Findings",
+    "findingsDesc": "List and organize the main contributions by significance.",
+    "limitations": "Identify Limitations",
+    "limitationsDesc": "Identify acknowledged and potential limitations in the work.",
+    "citations": "Generate Citations",
+    "citationsDesc": "Format citations in APA, MLA, and Chicago styles.",
+    "literature": "Literature Review",
+    "literatureDesc": "Synthesize findings and connections across related works.",
+    "future": "Future Work",
+    "futureDesc": "Suggest potential research directions and open questions.",
+    "useTemplate": "Use Template"
+  },
+  "session": {
+    "generating": "Generating...",
+    "newSession": "New Reading Session"
+  },
+  "keyword": {
+    "placeholder": "Type keyword and press Enter...",
+    "duplicate": "Keyword already added"
   },
   "probability": {
     "title": "Admission Probability Assessment",
