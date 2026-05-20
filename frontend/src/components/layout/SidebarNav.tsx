@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { MessageSquare, BarChart3, Kanban, Settings, PanelLeftOpen, PanelLeftClose } from "lucide-react";
+import { MessageSquare, BarChart3, Kanban, Settings, FileStack } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AppView } from "@/lib/types";
 
@@ -7,7 +7,6 @@ interface SidebarNavProps {
   activeView: AppView;
   onSelectView: (view: AppView) => void;
   collapsed: boolean;
-  onToggleCollapse: () => void;
 }
 
 interface NavItem {
@@ -19,6 +18,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: "chat", icon: MessageSquare, labelKey: "nav.chat" },
+  { id: "documents", icon: FileStack, labelKey: "nav.documents" },
   { id: "probability", icon: BarChart3, labelKey: "nav.probability" },
   { id: "roadmap", icon: Kanban, labelKey: "nav.roadmap" },
   { id: "settings", icon: Settings, labelKey: "nav.settings" },
@@ -33,27 +33,11 @@ const NAV_ITEMS: NavItem[] = [
  *
  * FastGPT source: FastGPT-reference/pageComponents/chat/slider/index.tsx (lines 210-251, 253-353)
  */
-export function SidebarNav({ activeView, onSelectView, collapsed, onToggleCollapse }: SidebarNavProps) {
+export function SidebarNav({ activeView, onSelectView, collapsed }: SidebarNavProps) {
   const { t } = useTranslation();
 
   return (
     <div className="flex flex-col gap-1 px-3">
-      {/* Collapse toggle — always visible */}
-      <button
-        onClick={onToggleCollapse}
-        className={cn(
-          "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-          "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-        )}
-      >
-        {collapsed ? (
-          <PanelLeftOpen className="h-5 w-5 shrink-0" />
-        ) : (
-          <PanelLeftClose className="h-5 w-5 shrink-0" />
-        )}
-        {!collapsed && <span className="truncate">{t("sidebar.collapse")}</span>}
-      </button>
-
       {/* View navigation items */}
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;

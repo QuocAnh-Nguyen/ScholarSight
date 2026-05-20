@@ -4,15 +4,20 @@ import { ChatShell } from "@/components/chat/ChatShell";
 import { LandingPage } from "@/components/landing/LandingPage";
 import { ProbabilityShell } from "@/components/probability/ProbabilityShell";
 import { RoadmapShell } from "@/components/roadmap/RoadmapShell";
+import { DocumentLibrary } from "@/components/documents/DocumentLibrary";
+import { DocumentDetail } from "@/components/documents/DocumentDetail";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
+import { DocumentProvider } from "@/providers/DocumentProvider";
 import type { AppView } from "@/lib/types";
 
 const SIDEBAR_STORAGE_KEY = "scholarsight.sidebar";
 const SIDEBAR_WIDTH = 272;
+const SIDEBAR_COLLAPSED_WIDTH = 56; // narrow strip for expand toggle
 
 function readSidebarOpen(): boolean {
   if (typeof window === "undefined") return true;
@@ -43,6 +48,7 @@ function AppShell() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [authFailed, setAuthFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
   // Persist sidebar state
   useEffect(() => {
@@ -97,6 +103,7 @@ function AppShell() {
 
   const handleSelectView = useCallback((v: AppView) => {
     setView(v);
+    setSelectedDocId(null);
     closeMobileSidebar();
   }, [closeMobileSidebar]);
 
@@ -141,20 +148,22 @@ function AppShell() {
   };
 
   return (
+    <DocumentProvider>
     <div className="relative flex h-full w-full overflow-hidden">
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "relative z-20 hidden shrink-0 overflow-hidden lg:block",
+          "relative z-20 hidden shrink-0 lg:block",
           "transition-[width] duration-300 ease-out",
+          desktopSidebarOpen ? "" : "overflow-hidden",
         )}
-        style={{ width: desktopSidebarOpen ? SIDEBAR_WIDTH : 0 }}
+        style={{ width: desktopSidebarOpen ? SIDEBAR_WIDTH : SIDEBAR_COLLAPSED_WIDTH }}
       >
         <div
           className={cn(
-            "absolute inset-y-0 left-0 h-full overflow-hidden bg-sidebar shadow-inner-right",
+            "absolute inset-y-0 left-0 h-full bg-sidebar shadow-inner-right overflow-hidden",
             "transition-transform duration-300 ease-out",
-            desktopSidebarOpen ? "translate-x-0" : "-translate-x-full",
+            desktopSidebarOpen ? "translate-x-0" : "-translate-x-0",
           )}
           style={{ width: SIDEBAR_WIDTH }}
         >
@@ -175,13 +184,22 @@ function AppShell() {
       </Sheet>
 
       {/* Main content area */}
-      <main className="relative flex h-full min-w-0 flex-1 flex-col">
+      <main className="relative flex h-full min-w-0 flex-1 flex-col lg:pb-0 pb-[52px]">
         {view === "chat" && (
           <ChatShell
             onToggleSidebar={toggleSidebar}
             hideSidebarToggleOnDesktop={desktopSidebarOpen}
             theme={theme}
             onToggleTheme={toggle}
+          />
+        )}
+        {view === "documents" && !selectedDocId && (
+          <DocumentLibrary onViewDocument={(id) => setSelectedDocId(id)} />
+        )}
+        {view === "documents" && selectedDocId && (
+          <DocumentDetail
+            documentId={selectedDocId}
+            onBack={() => setSelectedDocId(null)}
           />
         )}
         {view === "probability" && <ProbabilityShell />}
@@ -192,6 +210,10 @@ function AppShell() {
           </div>
         )}
       </main>
+
+      {/* Mobile bottom tab bar */}
+      <MobileTabBar activeView={view} onSelectView={handleSelectView} />
     </div>
+    </DocumentProvider>
   );
 }

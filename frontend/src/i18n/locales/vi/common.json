@@ -49,6 +49,7 @@
   },
   "nav": {
     "chat": "Hỏi đáp",
+    "documents": "Tài liệu",
     "probability": "Đánh giá cơ hội",
     "roadmap": "Lộ trình",
     "settings": "Cài đặt"
@@ -109,6 +110,69 @@
   "keyword": {
     "placeholder": "Nhập từ khóa và nhấn Enter...",
     "duplicate": "Từ khóa đã tồn tại"
+  },
+  "documents": {
+    "title": "Tài liệu",
+    "upload": "Tải lên tài liệu",
+    "uploadDesc": "Kéo thả hoặc nhấp để tải lên tài liệu",
+    "acceptedTypes": "Chấp nhận: PDF, PNG, JPG, TXT",
+    "uploading": "Đang tải lên...",
+    "processing": "Đang xử lý...",
+    "ready": "Sẵn sàng",
+    "error": "Xử lý thất bại",
+    "noDocuments": "Chưa có tài liệu nào. Tải lên bài báo đầu tiên của bạn.",
+    "noDescription": "Không có mô tả",
+    "noContent": "Chưa có nội dung trích xuất.",
+    "noSearchResults": "Không tìm thấy phần phù hợp.",
+    "search": "Tìm kiếm tài liệu...",
+    "searchPlaceholder": "Tìm kiếm trong tài liệu...",
+    "searchHint": "Nhập truy vấn để tìm kiếm trong tài liệu",
+    "view": "Xem chi tiết",
+    "rename": "Đổi tên",
+    "delete": "Xóa",
+    "deleteConfirm": "Xóa tài liệu này?",
+    "deleteWarning": "Hành động này sẽ xóa vĩnh viễn tài liệu và dữ liệu đã trích xuất.",
+    "dropOrClick": "Kéo thả hoặc nhấp để duyệt",
+    "invalidType": "Loại tệp không được hỗ trợ",
+    "fileTooLarge": "Tệp vượt quá giới hạn 50 MB",
+    "titleLabel": "Tiêu đề (tùy chọn)",
+    "titlePlaceholder": "Tiêu đề tài liệu",
+    "descriptionLabel": "Mô tả (tùy chọn)",
+    "descriptionPlaceholder": "Mô tả ngắn về tài liệu...",
+    "qaComingSoon": "Hỏi đáp tài liệu — sắp ra mắt",
+    "type": {
+      "pdf": "PDF",
+      "image": "Ảnh",
+      "text": "Văn bản"
+    },
+    "detail": {
+      "content": "Nội dung",
+      "search": "Tìm kiếm",
+      "qa": "Hỏi đáp",
+      "metadata": "Thông tin",
+      "pages": "Số trang",
+      "uploadedAt": "Ngày tải lên",
+      "fileSize": "Dung lượng",
+      "status": "Trạng thái"
+    }
+  },
+  "citation": {
+    "panelTitle": "Chi tiết nguồn",
+    "relevance": "Độ liên quan",
+    "documentType": "Loại",
+    "close": "Đóng bảng"
+  },
+  "common": {
+    "cancel": "Hủy",
+    "save": "Lưu",
+    "delete": "Xóa",
+    "close": "Đóng",
+    "back": "Quay lại",
+    "loading": "Đang tải...",
+    "error": "Đã xảy ra lỗi",
+    "retry": "Thử lại",
+    "copy": "Sao chép",
+    "copied": "Đã sao chép!"
   },
   "probability": {
     "title": "Đánh giá Cơ hội Trúng tuyển",
@@ -181,15 +245,5 @@
       "name": "Tên"
     },
     "back": "← Quay lại"
-  },
-  "common": {
-    "cancel": "Hủy",
-    "save": "Lưu",
-    "delete": "Xóa",
-    "close": "Đóng",
-    "back": "Quay lại",
-    "loading": "Đang tải...",
-    "error": "Đã xảy ra lỗi",
-    "retry": "Thử lại"
   }
 }

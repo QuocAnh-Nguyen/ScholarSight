@@ -1,5 +1,8 @@
 import type {
   AssessmentHistoryItem,
+  DocumentItem,
+  DocumentSearchResult,
+  DocumentUploadResponse,
   ProbabilityRequest,
   ProbabilityResponse,
   QueryResponse,
@@ -82,10 +85,12 @@ export async function submitQuery(
   query: string,
   topK = 5,
   threshold = 0.75,
+  signal?: AbortSignal,
 ): Promise<QueryResponse> {
   return request<QueryResponse>(`${BASE}/api/query`, token, {
     method: "POST",
     body: JSON.stringify({ query, top_k: topK, threshold }),
+    signal,
   });
 }
 
@@ -171,4 +176,59 @@ export async function suggestTasks(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+// -- Documents --------------------------------------------------------------
+export async function listDocuments(token: string): Promise<DocumentItem[]> {
+  return request<DocumentItem[]>(`${BASE}/api/documents`, token);
+}
+
+export async function getDocument(token: string, id: string): Promise<DocumentItem> {
+  return request<DocumentItem>(`${BASE}/api/documents/${encodeURIComponent(id)}`, token);
+}
+
+export async function uploadDocument(
+  token: string,
+  file: File,
+  title?: string,
+  description?: string,
+): Promise<DocumentUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (title) formData.append("title", title);
+  if (description) formData.append("description", description);
+
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE}/api/documents/upload`, {
+    method: "POST",
+    headers,
+    body: formData,
+    credentials: "same-origin",
+  });
+  if (!res.ok) throw new ApiError(res.status, `HTTP ${res.status}`);
+  return res.json() as Promise<DocumentUploadResponse>;
+}
+
+export async function deleteDocument(token: string, id: string): Promise<void> {
+  return request<void>(`${BASE}/api/documents/${encodeURIComponent(id)}`, token, {
+    method: "DELETE",
+  });
+}
+
+export async function searchDocument(
+  token: string,
+  documentId: string,
+  query: string,
+  topK = 5,
+): Promise<DocumentSearchResult[]> {
+  return request<DocumentSearchResult[]>(
+    `${BASE}/api/documents/${encodeURIComponent(documentId)}/search`,
+    token,
+    {
+      method: "POST",
+      body: JSON.stringify({ query, top_k: topK }),
+    },
+  );
 }

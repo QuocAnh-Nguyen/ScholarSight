@@ -48,8 +48,8 @@ class Settings(BaseSettings):
     SEMANTIC_SEARCH_TOP_K: int = 5
 
     # Celery
-    CELERY_BROKER_URL: str = "redis://localhost:6379/1"
-    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
+    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
 
 
 settings = Settings()

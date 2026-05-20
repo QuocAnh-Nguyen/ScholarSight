@@ -30,3 +30,12 @@ celery_app.conf.update(
         "app.tasks.embedding_tasks.*": {"queue": "embedding_generation"},
     },
 )
+
+# ---------------------------------------------------------------------------
+# Task discovery — import task modules so the @celery_app.task decorator
+# registers them with the Celery application at startup.  Without these
+# imports the worker process will reject tasks with "unregistered task".
+# ---------------------------------------------------------------------------
+import app.tasks.ocr_tasks           # noqa: F401, E402
+import app.tasks.summarization_tasks  # noqa: F401, E402
+import app.tasks.embedding_tasks      # noqa: F401, E402

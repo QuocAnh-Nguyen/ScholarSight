@@ -94,7 +94,14 @@ export function Sidebar({
         )}
       >
         {collapsed ? (
-          <GraduationCap className="h-6 w-6 text-primary" />
+          <button
+            onClick={handleToggleCollapse}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-primary transition-colors hover:bg-sidebar-accent/60"
+            title={t("sidebar.expand")}
+            aria-label={t("sidebar.expand")}
+          >
+            <GraduationCap className="h-6 w-6" />
+          </button>
         ) : (
           <>
             <GraduationCap className="h-6 w-6 shrink-0 text-primary" />
@@ -175,7 +182,6 @@ export function Sidebar({
           activeView={activeView}
           onSelectView={onSelectView}
           collapsed={collapsed}
-          onToggleCollapse={handleToggleCollapse}
         />
       </div>
 

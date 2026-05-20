@@ -49,9 +49,16 @@
   },
   "nav": {
     "chat": "Q&A",
+    "documents": "Documents",
     "probability": "Admission Chances",
     "roadmap": "Roadmap",
     "settings": "Settings"
+  },
+  "mobileNav": {
+    "chat": "Q&A",
+    "documents": "Docs",
+    "probability": "Chances",
+    "roadmap": "Roadmap"
   },
   "sidebar": {
     "collapse": "Collapse",
@@ -72,15 +79,38 @@
     "newChat": "New Chat",
     "placeholder": "Ask about admissions...",
     "send": "Send",
+    "stopGenerating": "Stop generating",
     "thinking": "Thinking...",
     "emptyTitle": "Admissions Q&A",
-    "emptyHint": "Ask about cutoffs, admission methods, quotas",
+    "emptyHint": "Start a conversation to get insights on admissions and research",
     "emptyExample": "E.g. \"What's the CS cutoff at HUST 2023?\"",
     "sourceLabel": "Source",
     "sourceScore": "Match: {{score}}%",
     "humanFallback": "This question requires in-depth consultation from an expert.",
     "disclaimer": "⚠️ This is an analytical tool. Final decisions are yours.",
-    "fallbackTitle": "Chat {{id}}"
+    "fallbackTitle": "Chat {{id}}",
+    "suggestedPrompts": {
+      "summarize": {
+        "title": "Summarize Paper",
+        "desc": "Get a concise summary of key findings and methods",
+        "prompt": "Summarize the key findings and methodology of the following paper:"
+      },
+      "compare": {
+        "title": "Compare Approaches",
+        "desc": "Compare different research methodologies side by side",
+        "prompt": "Compare and contrast the methodologies used in these papers:"
+      },
+      "explain": {
+        "title": "Explain Concept",
+        "desc": "Get a clear explanation of a technical concept",
+        "prompt": "Explain the concept in simple terms with examples: "
+      },
+      "citations": {
+        "title": "Find Citations",
+        "desc": "Identify relevant citations for your research topic",
+        "prompt": "Find relevant citations and references for a paper about: "
+      }
+    }
   },
   "templates": {
     "title": "Query Templates",
@@ -109,6 +139,69 @@
   "keyword": {
     "placeholder": "Type keyword and press Enter...",
     "duplicate": "Keyword already added"
+  },
+  "documents": {
+    "title": "Documents",
+    "upload": "Upload Document",
+    "uploadDesc": "Drag and drop or click to upload a document",
+    "acceptedTypes": "Accepted: PDF, PNG, JPG, TXT",
+    "uploading": "Uploading...",
+    "processing": "Processing...",
+    "ready": "Ready",
+    "error": "Processing failed",
+    "noDocuments": "No documents yet. Upload your first paper to get started.",
+    "noDescription": "No description provided",
+    "noContent": "No extracted content available yet.",
+    "noSearchResults": "No matching sections found.",
+    "search": "Search documents...",
+    "searchPlaceholder": "Search within document...",
+    "searchHint": "Enter a query to search within this document",
+    "view": "View Details",
+    "rename": "Rename",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this document?",
+    "deleteWarning": "This will permanently remove the document and its extracted data.",
+    "dropOrClick": "Drag & drop or click to browse",
+    "invalidType": "Unsupported file type",
+    "fileTooLarge": "File exceeds 50 MB limit",
+    "titleLabel": "Title (optional)",
+    "titlePlaceholder": "Document title",
+    "descriptionLabel": "Description (optional)",
+    "descriptionPlaceholder": "Brief description of this document...",
+    "qaComingSoon": "Document Q&A — coming soon",
+    "type": {
+      "pdf": "PDF",
+      "image": "Image",
+      "text": "Text"
+    },
+    "detail": {
+      "content": "Content",
+      "search": "Search",
+      "qa": "Q&A",
+      "metadata": "Document Info",
+      "pages": "Pages",
+      "uploadedAt": "Uploaded",
+      "fileSize": "File Size",
+      "status": "Status"
+    }
+  },
+  "citation": {
+    "panelTitle": "Source Details",
+    "relevance": "Relevance",
+    "documentType": "Type",
+    "close": "Close Panel"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "close": "Close",
+    "back": "Back",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "copy": "Copy",
+    "copied": "Copied!"
   },
   "probability": {
     "title": "Admission Probability Assessment",
@@ -181,15 +274,5 @@
       "name": "Name"
     },
     "back": "← Back"
-  },
-  "common": {
-    "cancel": "Cancel",
-    "save": "Save",
-    "delete": "Delete",
-    "close": "Close",
-    "back": "Back",
-    "loading": "Loading...",
-    "error": "An error occurred",
-    "retry": "Retry"
   }
 }

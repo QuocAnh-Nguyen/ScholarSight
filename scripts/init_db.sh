@@ -117,6 +117,18 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 
     CREATE INDEX IF NOT EXISTS idx_roadmap_tasks_user ON roadmap_tasks(user_id);
 
+    -- Documents (user-uploaded files for the Document Library UI)
+    CREATE TABLE IF NOT EXISTS documents (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title TEXT NOT NULL,
+        description TEXT,
+        type TEXT NOT NULL DEFAULT 'text' CHECK (type IN ('pdf', 'image', 'text')),
+        status TEXT NOT NULL DEFAULT 'processing' CHECK (status IN ('processing', 'ready', 'error')),
+        page_count INTEGER,
+        file_size INTEGER NOT NULL DEFAULT 0,
+        uploaded_at TIMESTAMPTZ DEFAULT now()
+    );
+
     -- Ingestion batches
     CREATE TABLE IF NOT EXISTS ingestion_batches (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

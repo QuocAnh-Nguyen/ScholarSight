@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Menu, Sun, Moon } from "lucide-react";
@@ -6,7 +6,9 @@ import { useChat } from "@/hooks/useChat";
 import { ChatMessages } from "./ChatMessages";
 import { ChatComposer } from "./ChatComposer";
 import { CitationModal } from "./CitationModal";
+import { CitationSidePanel } from "./CitationSidePanel";
 import { EmptyState } from "./EmptyState";
+import { cn } from "@/lib/utils";
 import type { SourceCitation } from "@/lib/types";
 
 interface ChatShellProps {
@@ -23,8 +25,19 @@ export function ChatShell({
   onToggleTheme,
 }: ChatShellProps) {
   const { t } = useTranslation();
-  const { messages, isStreaming, send } = useChat();
+  const { messages, isStreaming, send, stop } = useChat();
   const [selectedCitation, setSelectedCitation] = useState<SourceCitation | null>(null);
+  const hasPanel = selectedCitation !== null;
+
+  const handleClose = useCallback(() => setSelectedCitation(null), []);
+
+  /** Called when user clicks a suggested prompt in EmptyState */
+  const handleSendFromSuggestion = useCallback(
+    (content: string) => {
+      send(content);
+    },
+    [send],
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -50,24 +63,53 @@ export function ChatShell({
         </div>
       </header>
 
-      {/* Chat area */}
-      {messages.length === 0 && !isStreaming ? (
-        <EmptyState />
-      ) : (
-        <ChatMessages
-          messages={messages}
-          isStreaming={isStreaming}
-          onCitationClick={setSelectedCitation}
-        />
-      )}
+      {/* Main content + side panel (desktop) or modal (mobile) */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Chat area — shrinks when side panel is open */}
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 flex-col transition-all duration-200",
+          )}
+        >
+          {messages.length === 0 && !isStreaming ? (
+            <EmptyState onPromptClick={handleSendFromSuggestion} />
+          ) : (
+            <ChatMessages
+              messages={messages}
+              isStreaming={isStreaming}
+              onCitationClick={setSelectedCitation}
+            />
+          )}
 
-      {/* Composer */}
-      <ChatComposer onSend={send} disabled={isStreaming} />
+          {/* Composer */}
+          <ChatComposer
+            onSend={send}
+            onStop={stop}
+            disabled={isStreaming}
+            isStreaming={isStreaming}
+          />
+        </div>
 
-      {/* Citation modal */}
+        {/* Desktop: side panel for citation details */}
+        <div
+          className={cn(
+            "hidden lg:block shrink-0 overflow-hidden transition-all duration-200",
+            hasPanel ? "w-80 border-l" : "w-0",
+          )}
+        >
+          {hasPanel && (
+            <CitationSidePanel
+              citation={selectedCitation}
+              onClose={handleClose}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Mobile: use modal overlay for citation details */}
       <CitationModal
         citation={selectedCitation}
-        onClose={() => setSelectedCitation(null)}
+        onClose={handleClose}
       />
     </div>
   );

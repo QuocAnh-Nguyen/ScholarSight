@@ -140,8 +140,34 @@ export interface SuggestResponse {
   suggestions: Array<{ title: string; description: string; category: string; due_month: number }>;
 }
 
+// -- Document types ---------------------------------------------------------
+export type DocumentStatus = "processing" | "ready" | "error";
+export type DocumentType = "pdf" | "image" | "text";
+
+export interface DocumentItem {
+  id: string;
+  title: string;
+  description?: string;
+  type: DocumentType;
+  status: DocumentStatus;
+  pageCount?: number;
+  fileSize: number;
+  uploadedAt: string;
+}
+
+export interface DocumentUploadResponse {
+  id: string;
+  status: DocumentStatus;
+}
+
+export interface DocumentSearchResult {
+  doc_id: string;
+  chunk_text: string;
+  relevance_score: number;
+}
+
 // -- View routing ----------------------------------------------------------
-export type AppView = "chat" | "probability" | "roadmap" | "settings";
+export type AppView = "chat" | "probability" | "roadmap" | "documents" | "settings";
 
 // -- Boot state machine ----------------------------------------------------
 export type BootState =

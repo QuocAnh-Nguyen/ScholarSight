@@ -5,10 +5,12 @@ import { CitationChip } from "./CitationChip";
 
 interface MessageBubbleProps {
   message: ChatMessage;
+  /** Whether this message is being actively streamed (applies to the last AI message). */
+  isStreaming?: boolean;
   onCitationClick: (citation: SourceCitation) => void;
 }
 
-export function MessageBubble({ message, onCitationClick }: MessageBubbleProps) {
+export function MessageBubble({ message, isStreaming = false, onCitationClick }: MessageBubbleProps) {
   const { t } = useTranslation();
   const isUser = message.role === "user";
   const hasCitations = message.citations && message.citations.length > 0;
@@ -29,7 +31,7 @@ export function MessageBubble({ message, onCitationClick }: MessageBubbleProps) 
           <div className="whitespace-pre-wrap">{message.content}</div>
         ) : (
           <>
-            <MarkdownText content={message.content} />
+            <MarkdownText content={message.content} isStreaming={isStreaming} />
             {isFallback && (
               <div className="mt-2 text-xs text-muted-foreground">
                 {t("chat.humanFallback")}

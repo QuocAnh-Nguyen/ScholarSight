@@ -6,7 +6,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.core.config import settings
 from app.core.logging import setup_logging
-from app.api.routes import health, ingest, query, probability, roadmap, auth
+from app.api.routes import health, ingest, query, probability, roadmap, auth, documents
 
 setup_logging()
 
@@ -41,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(query.router, prefix="/api/query", tags=["Query"])
     app.include_router(probability.router, prefix="/api/probability", tags=["Probability"])
     app.include_router(roadmap.router, prefix="/api/roadmap", tags=["Roadmap"])
+    app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 
     return app
 
