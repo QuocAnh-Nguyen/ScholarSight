@@ -1,13 +1,16 @@
 """Application configuration via pydantic-settings."""
 
-from typing import List
+from __future__ import annotations
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore",
+    )
 
     # Application
     ENVIRONMENT: str = "development"
@@ -15,11 +18,19 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost", "http://127.0.0.1:3000"]
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost",
+        "http://127.0.0.1:3000",
+    ]
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://scholarsight:scholarsight_dev@localhost:5432/scholarsight"
-    DATABASE_URL_SYNC: str = "postgresql://scholarsight:scholarsight_dev@localhost:5432/scholarsight"
+    DATABASE_URL: str = (
+        "postgresql+asyncpg://scholarsight:scholarsight_dev@localhost:5432/scholarsight"
+    )
+    DATABASE_URL_SYNC: str = (
+        "postgresql://scholarsight:scholarsight_dev@localhost:5432/scholarsight"
+    )
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -34,10 +45,14 @@ class Settings(BaseSettings):
     # Embedding Service
     EMBEDDING_SERVICE_URL: str = "http://localhost:8080"
 
-    # OpenAI
+    # OpenAI / LLM
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o"
     OPENAI_MODEL_MINI: str = "gpt-4o-mini"
+
+    # OCR Service API Keys (used by OCRFallbackChain)
+    MISTRAL_API_KEY: str = ""
+    PAGEINDEX_API_KEY: str = ""
 
     # JWT
     JWT_ALGORITHM: str = "HS256"

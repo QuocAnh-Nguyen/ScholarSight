@@ -1,7 +1,16 @@
-"""LLM answer synthesis service for the RAG pipeline."""
+"""LLM answer synthesis service for the RAG pipeline.
+
+FIXES APPLIED (audit report):
+  - #2B  Broken regex: the original pattern only matched bare UUIDs in
+          brackets like [uuid]. The system prompt instructs the
+          LLM to output "[Tài liệu: {doc_id}]", so the regex now supports
+          both formats: bare [uuid] and [Tài liệu: uuid].
+"""
+
+from __future__ import annotations
 
 import logging
-from typing import Optional
+import re
 
 from openai import AsyncOpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -10,7 +19,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-_client: Optional[AsyncOpenAI] = None
+_client: AsyncOpenAI | None = None
 
 
 def _get_client() -> AsyncOpenAI:
@@ -32,6 +41,14 @@ NGUYÊN TẮC BẮT BUỘC:
 
 QUAN TRỌNG: Đây là công cụ phân tích và gợi ý. Quyết định cuối cùng thuộc về người dùng."""
 
+# ------------------------------------------------------------------
+# FIX 2B: Regex that matches BOTH bare [uuid] AND [Tài liệu: uuid].
+# UUID pattern: 8-4-4-4-12 hex digits, optionally prefixed by label.
+# ------------------------------------------------------------------
+_CITATION_RE = re.compile(
+    r"\[(?:Tài\s*liệu\s*:\s*)?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\]"
+)
+
 
 async def synthesize_answer(
     query: str,
@@ -41,7 +58,7 @@ async def synthesize_answer(
 
     Args:
         query: User's query text.
-        context_groups: List of context groups with raw components.
+        context_groups: List of context groups from Small-to-Big retrieval.
 
     Returns:
         Tuple of (answer_text, list_of_cited_doc_ids).
@@ -49,7 +66,7 @@ async def synthesize_answer(
     client = _get_client()
 
     # Build context section
-    context_parts = []
+    context_parts: list[str] = []
     for group in context_groups:
         doc_id = group["doc_id"]
         parts = [f"[Tài liệu: {doc_id}]"]
@@ -59,7 +76,9 @@ async def synthesize_answer(
             if ctype == "text":
                 parts.append(f"Nội dung: {component.get('raw_content', '')}")
             elif ctype == "table":
-                parts.append(f"Bảng dữ liệu: {component.get('table_structure', component.get('raw_content', ''))}")
+                parts.append(
+                    f"Bảng dữ liệu: {component.get('table_structure', component.get('raw_content', ''))}"
+                )
             elif ctype == "image":
                 parts.append(f"[Hình ảnh - URL: {component.get('image_url', 'N/A')}]")
 
@@ -72,13 +91,14 @@ async def synthesize_answer(
 
     context_text = "\n\n---\n\n".join(context_parts)
 
-    user_message = f"""TÀI LIỆU THAM KHẢO:
-{context_text}
-
-CÂU HỎI CỦA HỌC SINH:
-{query}
-
-Hãy trả lời câu hỏi dựa trên tài liệu trên. Nhớ trích dẫn nguồn [doc_id] khi sử dụng thông tin."""
+    user_message = (
+        f"TÀI LIỆU THAM KHẢO:\n"
+        f"{context_text}\n\n"
+        f"CÂU HỎI CỦA HỌC SINH:\n"
+        f"{query}\n\n"
+        f"Hãy trả lời câu hỏi dựa trên tài liệu trên. "
+        f"Nhớ trích dẫn nguồn [doc_id] khi sử dụng thông tin."
+    )
 
     response = await client.chat.completions.create(
         model=settings.OPENAI_MODEL,
@@ -92,8 +112,7 @@ Hãy trả lời câu hỏi dựa trên tài liệu trên. Nhớ trích dẫn ng
 
     answer = response.choices[0].message.content or ""
 
-    # Extract cited doc_ids from the answer
-    import re
-    cited_ids = re.findall(r'\[([0-9a-f-]{36})\]', answer)
+    cited_ids = _CITATION_RE.findall(answer)
+    logger.debug("Extracted %d cited doc_ids from LLM answer", len(cited_ids))
 
     return answer.strip(), cited_ids
