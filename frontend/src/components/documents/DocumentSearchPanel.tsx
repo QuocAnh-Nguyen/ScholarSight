@@ -1,9 +1,10 @@
 import { useCallback, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Search, Loader2, FileText, Zap, Clock, X } from "lucide-react";
+import { Search, Loader2, FileText, Zap, Clock, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/AuthProvider";
 import { searchDocument } from "@/lib/api";
+import { safeSetSession, safeGetSession } from "@/lib/storage";
 import type { DocumentSearchResult } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -11,6 +12,7 @@ import type { DocumentSearchResult } from "@/lib/types";
 //
 // Adds:
 //   - Search history (last 5 queries saved in sessionStorage)
+//   - Quota-aware storage: warns user if history can't be saved
 //   - Result count badge
 //   - Match term highlighting in chunk text
 //   - History chips for quick re-search
@@ -22,21 +24,12 @@ const HISTORY_KEY = "scholarsight.searchHistory";
 const MAX_HISTORY = 5;
 
 function loadHistory(): string[] {
-  try {
-    const raw = sessionStorage.getItem(HISTORY_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as string[];
-  } catch {
-    return [];
-  }
+  return safeGetSession<string[]>(HISTORY_KEY) ?? [];
 }
 
-function saveHistory(queries: string[]): void {
-  try {
-    sessionStorage.setItem(HISTORY_KEY, JSON.stringify(queries));
-  } catch {
-    // ignore
-  }
+function saveHistory(queries: string[]): boolean {
+  const result = safeSetSession(HISTORY_KEY, queries);
+  return result.ok;
 }
 
 interface DocumentSearchPanelProps {
@@ -52,11 +45,22 @@ export function DocumentSearchPanel({ documentId }: DocumentSearchPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [history, setHistory] = useState<string[]>(loadHistory);
+  const [storageWarning, setStorageWarning] = useState<string | null>(null);
 
   const addToHistory = useCallback((q: string) => {
     setHistory((prev) => {
       const next = [q, ...prev.filter((h) => h !== q)].slice(0, MAX_HISTORY);
-      saveHistory(next);
+      const saved = saveHistory(next);
+      if (!saved) {
+        // Storage quota exceeded — trim further and retry
+        const trimmed = next.slice(0, 3);
+        const retry = saveHistory(trimmed);
+        if (!retry) {
+          setStorageWarning("Search history storage is full. Some entries have been cleared.");
+        }
+        return trimmed;
+      }
+      setStorageWarning(null);
       return next;
     });
   }, []);
@@ -65,6 +69,7 @@ export function DocumentSearchPanel({ documentId }: DocumentSearchPanelProps) {
     setHistory((prev) => {
       const next = prev.filter((h) => h !== q);
       saveHistory(next);
+      setStorageWarning(null);
       return next;
     });
   }, []);
@@ -105,7 +110,7 @@ export function DocumentSearchPanel({ documentId }: DocumentSearchPanelProps) {
       .trim()
       .split(/\s+/)
       .filter((t) => t.length > 0)
-      .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")); // escape regex
+      .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
 
     if (terms.length === 0) return text;
 
@@ -126,7 +131,6 @@ export function DocumentSearchPanel({ documentId }: DocumentSearchPanelProps) {
     );
   }, [query]);
 
-  // Deduplicate history for display
   const uniqueHistory = useMemo(() => history, [history]);
 
   return (
@@ -152,7 +156,7 @@ export function DocumentSearchPanel({ documentId }: DocumentSearchPanelProps) {
             onClick={() => handleSearch()}
             disabled={loading || !query.trim()}
             size="sm"
-            className="absolute right-1 top-1/2 h-7 -translate-y-1/2 gap-1 rounded text-xs"
+            className="absolute right-1 top-1/2 h-7 -translate-y-1/2 gap-1 rounded-md px-2.5"
           >
             {loading ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -162,6 +166,21 @@ export function DocumentSearchPanel({ documentId }: DocumentSearchPanelProps) {
             {t("roadmap.create")}
           </Button>
         </label>
+
+        {/* Storage warning */}
+        {storageWarning && (
+          <div className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400">
+            <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+            <span className="flex-1">{storageWarning}</span>
+            <button
+              onClick={() => setStorageWarning(null)}
+              className="shrink-0 rounded-full p-0.5 hover:bg-amber-200 dark:hover:bg-amber-800"
+              aria-label="Dismiss"
+            >
+              <X className="h-2.5 w-2.5" />
+            </button>
+          </div>
+        )}
 
         {/* Search history chips */}
         {uniqueHistory.length > 0 && (
@@ -244,7 +263,6 @@ export function DocumentSearchPanel({ documentId }: DocumentSearchPanelProps) {
         {/* Results list */}
         {results.length > 0 && (
           <>
-            {/* Result count badge */}
             <div className="mb-3 flex items-center gap-1.5">
               <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
                 {results.length} {results.length === 1 ? "result" : "results"} found

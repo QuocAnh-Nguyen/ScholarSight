@@ -1,9 +1,12 @@
 import { useAuth } from "@/providers/AuthProvider";
+import { Navigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 
-/** Wraps protected views. Renders nothing if not authenticated (parent App.tsx shows auth view). */
+/** Wraps protected routes. Redirects to / if not authenticated, shows loading spinner during bootstrap. */
 export function AuthGuard({ children }: { children: ReactNode }) {
-  const { isLoading } = useAuth();
+  const { token, isLoading } = useAuth();
+  const { t } = useTranslation();
 
   if (isLoading) {
     return (
@@ -14,11 +17,15 @@ export function AuthGuard({ children }: { children: ReactNode }) {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground/40" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-foreground/60" />
             </span>
-            Loading...
+            {t("app.loading.connecting")}
           </div>
         </div>
       </div>
     );
+  }
+
+  if (!token) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

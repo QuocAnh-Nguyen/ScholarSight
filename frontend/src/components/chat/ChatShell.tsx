@@ -8,24 +8,22 @@ import { ChatComposer } from "./ChatComposer";
 import { CitationModal } from "./CitationModal";
 import { CitationSidePanel } from "./CitationSidePanel";
 import { EmptyState } from "./EmptyState";
+import { useTheme } from "@/providers/ThemeProvider";
 import { cn } from "@/lib/utils";
 import type { SourceCitation } from "@/lib/types";
 
 interface ChatShellProps {
   onToggleSidebar: () => void;
   hideSidebarToggleOnDesktop: boolean;
-  theme: "light" | "dark";
-  onToggleTheme: () => void;
 }
 
 export function ChatShell({
   onToggleSidebar,
   hideSidebarToggleOnDesktop,
-  theme,
-  onToggleTheme,
 }: ChatShellProps) {
   const { t } = useTranslation();
   const { messages, isStreaming, send, stop } = useChat();
+    const { theme, toggle: onToggleTheme } = useTheme();
   const [selectedCitation, setSelectedCitation] = useState<SourceCitation | null>(null);
   const hasPanel = selectedCitation !== null;
 

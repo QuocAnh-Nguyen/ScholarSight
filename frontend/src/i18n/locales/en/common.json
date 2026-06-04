@@ -236,6 +236,21 @@
       "in_progress": "In Progress",
       "done": "Done"
     },
+    "phases": {
+      "todo": "Phase 1: Foundation",
+      "in_progress": "Phase 2: Execution",
+      "done": "Phase 3: Mastered"
+    },
+    "difficulty": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
+    "estimatedTime": "Study Time",
+    "resources": "Resources",
+    "completed": "Completed",
+    "dragHint": "Drag to reorder or move between phases",
+    "addTopic": "Add topic",
     "createTitle": "New Task",
     "createDescription": "Description (optional)",
     "createCategory": "Category",

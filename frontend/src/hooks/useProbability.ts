@@ -1,11 +1,25 @@
-import { useCallback, useState } from "react";
-import { assessProbability, fetchAssessmentHistory } from "@/lib/api";
+import { useCallback, useEffect, useState } from "react";
+import {
+  assessProbability,
+  fetchAssessmentHistory,
+  fetchUniversities,
+  fetchAdmissionMethods,
+} from "@/lib/api";
 import { useAuth } from "@/providers/AuthProvider";
-import type { AssessmentHistoryItem, ProbabilityRequest, ProbabilityResponse } from "@/lib/types";
+import type {
+  AssessmentHistoryItem,
+  ProbabilityRequest,
+  ProbabilityResponse,
+  UniversityMeta,
+  AdmissionMethod,
+} from "@/lib/types";
 
 export function useProbability(): {
   result: ProbabilityResponse | null;
   history: AssessmentHistoryItem[];
+  universities: UniversityMeta[];
+  methods: AdmissionMethod[];
+  metaLoading: boolean;
   loading: boolean;
   historyLoading: boolean;
   error: string | null;
@@ -15,9 +29,42 @@ export function useProbability(): {
   const { token } = useAuth();
   const [result, setResult] = useState<ProbabilityResponse | null>(null);
   const [history, setHistory] = useState<AssessmentHistoryItem[]>([]);
+  const [universities, setUniversities] = useState<UniversityMeta[]>([]);
+  const [methods, setMethods] = useState<AdmissionMethod[]>([]);
+  const [metaLoading, setMetaLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch dynamic university and admission method lists on mount
+  useEffect(() => {
+    if (!token) {
+      setMetaLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadMeta() {
+      try {
+        const [unis, meths] = await Promise.all([
+          fetchUniversities(token!),
+          fetchAdmissionMethods(token!),
+        ]);
+        if (!cancelled) {
+          setUniversities(unis);
+          setMethods(meths);
+        }
+      } catch {
+        // Fall back to empty — component will use hardcoded defaults
+      } finally {
+        if (!cancelled) setMetaLoading(false);
+      }
+    }
+
+    loadMeta();
+    return () => { cancelled = true; };
+  }, [token]);
 
   const assess = useCallback(async (body: ProbabilityRequest) => {
     if (!token) return;
@@ -46,5 +93,16 @@ export function useProbability(): {
     }
   }, [token]);
 
-  return { result, history, loading, historyLoading, error, assess, loadHistory };
+  return {
+    result,
+    history,
+    universities,
+    methods,
+    metaLoading,
+    loading,
+    historyLoading,
+    error,
+    assess,
+    loadHistory,
+  };
 }

@@ -87,8 +87,28 @@ export interface AssessmentHistoryItem {
   created_at: string | null;
 }
 
+// -- Probability metadata types --------------------------------------------
+export interface UniversityMeta {
+  id: string;
+  name: string;
+  code: string;
+}
+
+export interface AdmissionMethod {
+  value: string;
+  label: string;
+  labelKey: string;
+}
+
 // -- Roadmap types --------------------------------------------------------
 export type TaskStatus = "todo" | "in_progress" | "done";
+
+export type TopicDifficulty = "beginner" | "intermediate" | "advanced";
+
+export interface ResourceLink {
+  url: string;
+  label: string;
+}
 
 export interface TaskResponse {
   id: string;
@@ -99,6 +119,16 @@ export interface TaskResponse {
   category: string | null;
   sort_order: number | null;
   created_at: string | null;
+  /** Estimated study time in minutes */
+  estimated_time?: number | null;
+  /** Links to external resources */
+  resource_links?: ResourceLink[] | null;
+  /** Topic difficulty level */
+  difficulty?: TopicDifficulty | null;
+  /** Whether the topic has been completed */
+  completed?: boolean;
+  /** Arbitrary tags beyond category / difficulty */
+  tags?: string[] | null;
 }
 
 export interface TaskCreate {
@@ -108,6 +138,11 @@ export interface TaskCreate {
   due_month?: number;
   category?: string;
   sort_order?: number;
+  estimated_time?: number | null;
+  resource_links?: ResourceLink[] | null;
+  difficulty?: TopicDifficulty | null;
+  completed?: boolean;
+  tags?: string[] | null;
 }
 
 export interface TaskUpdate {
@@ -117,6 +152,11 @@ export interface TaskUpdate {
   due_month?: number;
   category?: string;
   sort_order?: number;
+  estimated_time?: number | null;
+  resource_links?: ResourceLink[] | null;
+  difficulty?: TopicDifficulty | null;
+  completed?: boolean;
+  tags?: string[] | null;
 }
 
 export interface TaskFilter {

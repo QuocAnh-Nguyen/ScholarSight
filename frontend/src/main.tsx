@@ -4,6 +4,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./globals.css";
 import "./i18n";
+import { ThemeProvider } from "./providers/ThemeProvider";
 
 // `crypto.randomUUID` is only defined in secure contexts (HTTPS or localhost).
 // LAN access over plain HTTP leaves it undefined, which crashes components that
@@ -25,6 +26,8 @@ if (!root) throw new Error("root element missing");
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <App />
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
   </React.StrictMode>,
 );

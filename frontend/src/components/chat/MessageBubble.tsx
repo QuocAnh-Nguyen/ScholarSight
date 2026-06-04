@@ -31,7 +31,12 @@ export function MessageBubble({ message, isStreaming = false, onCitationClick }:
           <div className="whitespace-pre-wrap">{message.content}</div>
         ) : (
           <>
-            <MarkdownText content={message.content} isStreaming={isStreaming} />
+            <MarkdownText
+              content={message.content}
+              isStreaming={isStreaming}
+              citations={message.citations}
+              onCitationClick={onCitationClick}
+            />
             {isFallback && (
               <div className="mt-2 text-xs text-muted-foreground">
                 {t("chat.humanFallback")}

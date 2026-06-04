@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BarChart3, Target, TrendingUp, AlertTriangle } from "lucide-react";
+import { BarChart3, Target, TrendingUp, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,17 +20,19 @@ import type { ProbabilityRequest } from "@/lib/types";
 //   - Historical cutoffs rendered as styled rows
 //   - Consistent card shadow/hover transitions
 //   - Input focus ring styling
+//   - Dynamic university/method data from API (with hardcoded fallback)
 //
 // FastGPT source: FastGPT-reference/pageComponents/dataset/list/List.tsx
 // ---------------------------------------------------------------------------
 
-const UNIVERSITIES = [
+/** Hardcoded fallbacks — used only when the API hasn't loaded yet or fails. */
+const FALLBACK_UNIVERSITIES = [
   "Trường Đại học Bách khoa Hà Nội",
   "Trường Đại học Kinh tế Quốc dân",
   "Trường Đại học Ngoại thương",
 ];
 
-const METHODS = [
+const FALLBACK_METHODS = [
   { value: "regular", labelKey: "THPT" },
   { value: "priority", labelKey: "Priority" },
   { value: "aptitude_test", labelKey: "Aptitude Test" },
@@ -44,11 +46,20 @@ const TIER_CONFIG: Record<string, { variant: "outline" | "default" | "destructiv
 
 export function ProbabilityShell() {
   const { t } = useTranslation();
-  const { result, loading, error, assess } = useProbability();
+  const { result, loading, error, assess, universities, methods, metaLoading } = useProbability();
   const [score, setScore] = useState("");
   const [university, setUniversity] = useState("");
   const [major, setMajor] = useState("");
   const [method, setMethod] = useState("regular");
+
+  // Use API data when available, fall back to hardcoded
+  const universityOptions = universities.length > 0
+    ? universities.map((u) => u.name)
+    : FALLBACK_UNIVERSITIES;
+
+  const methodOptions = methods.length > 0
+    ? methods
+    : FALLBACK_METHODS;
 
   const handleAssess = () => {
     if (!score || !university || !major) return;
@@ -94,16 +105,23 @@ export function ProbabilityShell() {
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">{t("probability.universityLabel")}</Label>
-              <Select value={university} onValueChange={setUniversity}>
-                <SelectTrigger className="h-10 rounded-lg text-sm">
-                  <SelectValue placeholder={t("probability.universityPlaceholder")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {UNIVERSITIES.map((u) => (
-                    <SelectItem key={u} value={u}>{u}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {metaLoading && universities.length === 0 ? (
+                <div className="flex h-10 items-center gap-2 rounded-lg border px-3 text-sm text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Loading universities...
+                </div>
+              ) : (
+                <Select value={university} onValueChange={setUniversity}>
+                  <SelectTrigger className="h-10 rounded-lg text-sm">
+                    <SelectValue placeholder={t("probability.universityPlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {universityOptions.map((u) => (
+                      <SelectItem key={u} value={u}>{u}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -118,16 +136,23 @@ export function ProbabilityShell() {
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">{t("probability.methodLabel")}</Label>
-              <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger className="h-10 rounded-lg text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {METHODS.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>{m.labelKey}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {metaLoading && methods.length === 0 ? (
+                <div className="flex h-10 items-center gap-2 rounded-lg border px-3 text-sm text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Loading methods...
+                </div>
+              ) : (
+                <Select value={method} onValueChange={setMethod}>
+                  <SelectTrigger className="h-10 rounded-lg text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {methodOptions.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.labelKey}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             {error && (
@@ -139,7 +164,7 @@ export function ProbabilityShell() {
 
             <Button
               onClick={handleAssess}
-              disabled={loading || !isValid}
+              disabled={loading || !isValid || metaLoading}
               className="h-10 w-full rounded-lg transition-all active:scale-[0.98]"
             >
               {loading ? (

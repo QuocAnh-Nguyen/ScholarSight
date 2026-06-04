@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
-import { submitQuery } from "@/lib/api";
+import { submitQueryStream } from "@/lib/api";
 import { useAuth } from "@/providers/AuthProvider";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, SourceCitation } from "@/lib/types";
 
 export function useChat(): {
   messages: ChatMessage[];
@@ -13,11 +13,11 @@ export function useChat(): {
   const { token } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
+  const abortRef = useRef<(() => void) | null>(null);
 
   const stop = useCallback(() => {
     if (abortRef.current) {
-      abortRef.current.abort("user_stop");
+      abortRef.current();
       abortRef.current = null;
       setIsStreaming(false);
     }
@@ -37,39 +37,84 @@ export function useChat(): {
         createdAt: Date.now(),
       };
 
+      // Create a placeholder assistant message that will accumulate tokens
+      const assistantId = crypto.randomUUID();
+
       setMessages((prev) => [...prev, userMsg]);
       setIsStreaming(true);
 
-      const controller = new AbortController();
-      abortRef.current = controller;
+      abortRef.current = submitQueryStream(
+        token,
+        content,
+        5,
+        0.75,
+        {
+          onToken: (chunk: string) => {
+            setMessages((prev) => {
+              const last = prev[prev.length - 1];
+              // If the last message is the user message (assistant hasn't been added yet),
+              // or it's a prior assistant message, create/append appropriately
+              if (!last || last.id !== assistantId) {
+                // First token — create the assistant message
+                const assistantMsg: ChatMessage = {
+                  id: assistantId,
+                  role: "assistant",
+                  content: chunk,
+                  createdAt: Date.now(),
+                };
+                return [...prev, assistantMsg];
+              }
+              // Append token to existing assistant message
+              const updated = [...prev];
+              updated[updated.length - 1] = {
+                ...last,
+                content: last.content + chunk,
+              };
+              return updated;
+            });
+          },
 
-      try {
-        const resp = await submitQuery(token, content, 5, 0.75, controller.signal);
-        const assistantMsg: ChatMessage = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: resp.answer,
-          citations: resp.citations,
-          humanFallback: resp.human_fallback,
-          createdAt: Date.now(),
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-      } catch (err: unknown) {
-        // Don't show error if the user intentionally stopped
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        if (err instanceof Error && err.message === "user_stop") return;
+          onComplete: (citations: SourceCitation[], humanFallback: boolean) => {
+            setMessages((prev) => {
+              const updated = [...prev];
+              const lastIdx = updated.length - 1;
+              if (lastIdx >= 0 && updated[lastIdx].id === assistantId) {
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  citations,
+                  humanFallback,
+                };
+              } else if (updated.length > 0) {
+                // Assistant message may not exist if stream was instant — create it
+                const placeholder: ChatMessage = {
+                  id: assistantId,
+                  role: "assistant",
+                  content: "",
+                  citations,
+                  humanFallback,
+                  createdAt: Date.now(),
+                };
+                return [...updated, placeholder];
+              }
+              return updated;
+            });
+            abortRef.current = null;
+            setIsStreaming(false);
+          },
 
-        const errMsg: ChatMessage = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "Sorry, something went wrong. Please try again.",
-          createdAt: Date.now(),
-        };
-        setMessages((prev) => [...prev, errMsg]);
-      } finally {
-        abortRef.current = null;
-        setIsStreaming(false);
-      }
+          onError: (_err: Error) => {
+            const errMsg: ChatMessage = {
+              id: crypto.randomUUID(),
+              role: "assistant",
+              content: "Sorry, something went wrong. Please try again.",
+              createdAt: Date.now(),
+            };
+            setMessages((prev) => [...prev, errMsg]);
+            abortRef.current = null;
+            setIsStreaming(false);
+          },
+        },
+      );
     },
     [token, stop],
   );

@@ -6,6 +6,9 @@ import rehypeKatex from "rehype-katex";
 import rehypeExternalLinks from "rehype-external-links";
 import type { Components } from "react-markdown";
 import { Code } from "./CodeBlock";
+import { InlineCitation } from "./InlineCitation";
+import { remarkCitationLink } from "@/lib/remarkCitationLink";
+import type { SourceCitation } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Enhanced Markdown renderer adapted from FastGPT's Markdown/index.tsx.
@@ -14,6 +17,7 @@ import { Code } from "./CodeBlock";
 //   - LaTeX / KaTeX math rendering (remark-math + rehype-katex)
 //   - Syntax-highlighted code blocks with copy button (CodeBlock component)
 //   - External links open in new tab (rehype-external-links)
+//   - Inline citation parsing: `[Tài liệu: uuid]` → clickable badge
 //   - Large-content fallback: raw text for sources > 200K chars
 //
 // FastGPT sources:
@@ -25,6 +29,10 @@ interface MarkdownTextProps {
   content: string;
   /** When true, appends a blinking cursor indicator to the last element. */
   isStreaming?: boolean;
+  /** Citations for this message — used to look up docId → SourceCitation on inline click. */
+  citations?: SourceCitation[];
+  /** Called when an inline citation badge is clicked. */
+  onCitationClick?: (citation: SourceCitation) => void;
 }
 
 /** Maximum source length before we fall back to plain-text rendering. */
@@ -32,8 +40,6 @@ const MAX_SOURCE_LENGTH = 200_000;
 
 /**
  * Wrap `pre` children so that `<code>` blocks receive `codeBlock: true`.
- *
- * Mirrors FastGPT's `RewritePre` helper in Markdown/index.tsx.
  */
 function RewritePre({ children }: { children: React.ReactNode }) {
   const modifiedChildren = React.Children.map(children, (child) => {
@@ -46,8 +52,23 @@ function RewritePre({ children }: { children: React.ReactNode }) {
   return <>{modifiedChildren}</>;
 }
 
+/** Build a docId → SourceCitation lookup map for O(1) inline citation resolution. */
+function buildCitationMap(
+  citations?: SourceCitation[],
+): Map<string, SourceCitation> {
+  const map = new Map<string, SourceCitation>();
+  if (!citations) return map;
+  for (const c of citations) {
+    map.set(c.doc_id, c);
+  }
+  return map;
+}
+
 /** Components map consumed by react-markdown. */
-function useComponents(): Components {
+function useComponents(
+  citationMap: Map<string, SourceCitation>,
+  onCitationClick?: (citation: SourceCitation) => void,
+): Components {
   return useMemo<Components>(
     () => ({
       pre: ({ children }) => <RewritePre>{children}</RewritePre>,
@@ -72,16 +93,33 @@ function useComponents(): Components {
         );
       },
 
-      // No custom link component needed — rehype-external-links handles `target="_blank"`.
-      // No custom img component needed — default behavior is fine.
-      // No custom table, mermaid, echarts, video, audio blocks (deferred).
+      // Custom citationLink node rendered as an inline clickable badge
+      citationLink: ({ node }: any) => {
+        const docId = node?.data?.docId as string | undefined;
+        if (!docId) return null;
+
+        const handleClick = (id: string) => {
+          const citation = citationMap.get(id);
+          if (citation && onCitationClick) {
+            onCitationClick(citation);
+          }
+        };
+
+        return <InlineCitation docId={docId} onClick={handleClick} />;
+      },
     }),
-    [],
+    [citationMap, onCitationClick],
   );
 }
 
-export function MarkdownText({ content, isStreaming }: MarkdownTextProps) {
-  const components = useComponents();
+export function MarkdownText({
+  content,
+  isStreaming,
+  citations,
+  onCitationClick,
+}: MarkdownTextProps) {
+  const citationMap = useMemo(() => buildCitationMap(citations), [citations]);
+  const components = useComponents(citationMap, onCitationClick);
 
   // --- Large-content fallback (FastGPT pattern) ------------------------------
   if (content.length >= MAX_SOURCE_LENGTH) {
@@ -105,7 +143,7 @@ export function MarkdownText({ content, isStreaming }: MarkdownTextProps) {
       ].join(" ")}
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        remarkPlugins={[remarkGfm, remarkMath, remarkCitationLink]}
         rehypePlugins={[
           rehypeKatex,
           [rehypeExternalLinks, { target: "_blank", rel: ["noopener", "noreferrer"] }],

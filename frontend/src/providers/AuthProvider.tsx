@@ -1,5 +1,11 @@
 import { createContext, useContext, useState, useEffect, type ReactNode, useCallback } from "react";
-import { fetchMe } from "@/lib/api";
+import {
+  fetchMe,
+  setAccessToken,
+  clearAccessToken,
+  getAccessToken,
+  refreshAccessToken,
+} from "@/lib/api";
 import type { UserResponse } from "@/lib/types";
 
 interface AuthContextValue {
@@ -13,9 +19,14 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// ---------------------------------------------------------------------------
+// localStorage fallback — used only when the refresh endpoint is unavailable.
+// Once the backend supports HttpOnly cookies + /api/auth/refresh, this
+// becomes a secondary recovery path.
+// ---------------------------------------------------------------------------
 const TOKEN_KEY = "scholarsight.token";
 
-function loadToken(): string | null {
+function loadTokenFallback(): string | null {
   if (typeof window === "undefined") return null;
   try {
     return localStorage.getItem(TOKEN_KEY);
@@ -24,7 +35,7 @@ function loadToken(): string | null {
   }
 }
 
-function saveToken(token: string): void {
+function saveTokenFallback(token: string): void {
   try {
     localStorage.setItem(TOKEN_KEY, token);
   } catch {
@@ -32,7 +43,7 @@ function saveToken(token: string): void {
   }
 }
 
-function clearToken(): void {
+function clearTokenFallback(): void {
   try {
     localStorage.removeItem(TOKEN_KEY);
   } catch {
@@ -41,7 +52,7 @@ function clearToken(): void {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(loadToken);
+  const [token, setToken] = useState<string | null>(getAccessToken);
   const [user, setUser] = useState<UserResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -50,7 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await fetchMe(authToken);
       setUser(me);
     } catch {
-      clearToken();
+      clearAccessToken();
+      clearTokenFallback();
       setToken(null);
       setUser(null);
     } finally {
@@ -58,20 +70,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Bootstrap: try HttpOnly cookie refresh first, fall back to localStorage
   useEffect(() => {
-    const stored = loadToken();
-    if (stored) {
-      setToken(stored);
-      fetchUser(stored);
-    } else {
-      setIsLoading(false);
+    let cancelled = false;
+
+    async function bootstrap() {
+      // 1. Try refreshing via HttpOnly cookie (defense-in-depth)
+      const refreshed = await refreshAccessToken();
+      if (!cancelled && refreshed) {
+        setToken(refreshed);
+        await fetchUser(refreshed);
+        return;
+      }
+
+      // 2. Fall back to localStorage
+      const stored = loadTokenFallback();
+      if (!cancelled && stored) {
+        setAccessToken(stored);
+        setToken(stored);
+        await fetchUser(stored);
+        return;
+      }
+
+      // 3. Not authenticated
+      if (!cancelled) {
+        setIsLoading(false);
+      }
     }
+
+    bootstrap();
+    return () => { cancelled = true; };
   }, [fetchUser]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { loginApi } = await import("@/lib/api");
     const resp = await loginApi(email, password);
-    saveToken(resp.access_token);
+    setAccessToken(resp.access_token);
+    saveTokenFallback(resp.access_token);
     setToken(resp.access_token);
     await fetchUser(resp.access_token);
   }, [fetchUser]);
@@ -79,13 +114,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(async (email: string, password: string, fullName: string) => {
     const { registerApi } = await import("@/lib/api");
     const resp = await registerApi(email, password, fullName);
-    saveToken(resp.access_token);
+    setAccessToken(resp.access_token);
+    saveTokenFallback(resp.access_token);
     setToken(resp.access_token);
     await fetchUser(resp.access_token);
   }, [fetchUser]);
 
   const logout = useCallback(() => {
-    clearToken();
+    clearAccessToken();
+    clearTokenFallback();
     setToken(null);
     setUser(null);
   }, []);
