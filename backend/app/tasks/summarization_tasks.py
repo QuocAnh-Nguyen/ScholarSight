@@ -1,13 +1,10 @@
 """Celery tasks for LLM summarization.
 
-FIXES APPLIED (audit report):
+FIXES APPLIED:
+  - #1   Event loop RuntimeError: uses `await get_worker_session()`.
   - #2A  DB connection leak: uses shared engine.
-  - #1C  Race condition: the summary_embeddings row is now inserted WITH
-          a placeholder embedding in the SAME task that chains to embedding
-          generation.  But critically we use the component's parent_doc_id
-          for the doc_id column so semantic search can join back to siblings.
-  - #1D  Broker bloat: receives only component_uuid, fetches raw content
-          from DB directly.
+  - #1C  Race condition: summary row inserted immediately, embedding chained.
+  - #1D  Broker bloat: receives only component_uuid, fetches content from DB.
 """
 
 from __future__ import annotations
@@ -33,8 +30,7 @@ def summarize_component_task(self, component_uuid: str):
         from app.db.worker_engine import get_worker_session
         from app.services.llm.summarizer import summarize_component
 
-        async with get_worker_session() as db:
-            # 1. Fetch the component from DB
+        async with await get_worker_session() as db:
             result = await db.execute(
                 text(
                     "SELECT id, parent_doc_id, component_type, raw_content, "
@@ -45,20 +41,18 @@ def summarize_component_task(self, component_uuid: str):
             )
             row = result.fetchone()
             if not row:
-                logger.warning("Component %s not found — skipping summarization", component_uuid)
+                logger.warning(
+                    "Component %s not found — skipping summarization",
+                    component_uuid,
+                )
                 return
 
             comp_id = str(row[0])
-            parent_doc_id = str(row[1])
             component_type = row[2] or "text"
             raw_content = row[3] or ""
 
-            # 2. Generate summary
             summary = await summarize_component(raw_content, component_type)
 
-            # 3. Insert summary_embeddings row with NULL embedding
-            #    (embedding filled in by the next task; race condition is
-            #     mitigated because we insert immediately and chain)
             await db.execute(
                 text(
                     "INSERT INTO summary_embeddings "
@@ -74,10 +68,10 @@ def summarize_component_task(self, component_uuid: str):
             )
             await db.commit()
 
-            logger.info("Generated summary for component %s (%s)", comp_id, component_type)
+            logger.info(
+                "Generated summary for component %s (%s)", comp_id, component_type,
+            )
 
-            # 4. Chain to embedding generation — pass ONLY the summary_embeddings row id
-            #    so the embedding task can look up the summary text from DB
             result2 = await db.execute(
                 text(
                     "SELECT id FROM summary_embeddings "

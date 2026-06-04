@@ -1,14 +1,10 @@
 """Celery tasks for OCR extraction and component separation.
 
-FIXES APPLIED (audit report):
-  - #2A  DB connection leak: uses shared engine (app.db.worker_engine)
-          instead of creating a new engine per task invocation.
-  - #1A  Small-to-Big retrieval: every component from the same document
-          shares a single parent_doc_id (the documents row UUID).  Summaries
-          reference individual component UUIDs but semantic-search results
-          join back via parent_doc_id to fetch all siblings.
-  - #1D  Celery broker bloat: raw content is written to the DB *first*,
-          then only the component UUID is passed to downstream tasks.
+FIXES APPLIED:
+  - #2A  DB connection leak: uses shared engine.
+  - #1A  Small-to-Big retrieval: every component shares parent_doc_id.
+  - #1D  Celery broker bloat: raw content written to DB, only UUIDs passed.
+  - #1   Event loop RuntimeError: uses `await get_worker_session()`.
 """
 
 from __future__ import annotations
@@ -27,39 +23,27 @@ logger = logging.getLogger(__name__)
 def process_pdf_task(self, doc_id: str, object_name: str):
     """Main PDF processing task: download -> OCR -> store components.
 
-    Called from the /api/documents/upload endpoint after the documents row
-    is created with status='processing'.
-
     Args:
-        doc_id:  UUID of the documents table row (used as parent_doc_id for
-                 all extracted components — this is the "big" in Small-to-Big).
+        doc_id:  UUID of the documents table row (used as parent_doc_id).
         object_name: MinIO object key for the uploaded PDF.
     """
     async def _process() -> None:
         from sqlalchemy import text
 
-        from app.core.config import settings
         from app.db.worker_engine import get_worker_session
         from app.services.ocr import ocr_chain
         from app.services.storage import download_from_minio
 
-        async with get_worker_session() as db:
+        async with await get_worker_session() as db:
             try:
-                # 1. Download PDF from MinIO
                 pdf_bytes = await download_from_minio(object_name)
-
-                # 2. Run OCR
                 ocr_result = await ocr_chain.extract(pdf_bytes, object_name)
 
-                # 3. Insert raw components into DB (each gets its own UUID,
-                #    but all share parent_doc_id = doc_id for retrieval grouping)
                 component_ids: list[str] = []
-
                 for comp in ocr_result.components:
                     comp_id = str(uuid.uuid4())
                     component_ids.append(comp_id)
 
-                    # Upload images to MinIO if present
                     image_url: str | None = None
                     if comp.image_bytes:
                         from app.services.storage import upload_image_to_minio
@@ -95,11 +79,10 @@ def process_pdf_task(self, doc_id: str, object_name: str):
 
                 await db.commit()
                 logger.info(
-                    "Stored %d components for document %s (parent_doc_id=%s)",
+                    "Stored %d components for document %s (parent=%s)",
                     len(component_ids), doc_id, doc_id,
                 )
 
-                # 4. Update documents row: status=ready, page count, description
                 description = _build_description(ocr_result)
                 await db.execute(
                     text(
@@ -117,13 +100,12 @@ def process_pdf_task(self, doc_id: str, object_name: str):
                 )
                 await db.commit()
 
-                # 5. Chain summarization tasks (pass only component UUID — NOT raw content)
                 from app.tasks.summarization_tasks import summarize_component_task
                 for comp_id in component_ids:
                     summarize_component_task.delay(comp_id)
 
                 logger.info(
-                    "OCR pipeline complete for document %s: %d pages, %d components",
+                    "OCR pipeline complete: doc=%s pages=%d components=%d",
                     doc_id, ocr_result.total_pages, len(ocr_result.components),
                 )
 
@@ -141,8 +123,6 @@ def process_pdf_task(self, doc_id: str, object_name: str):
 
 def _build_description(ocr_result: Any) -> str:
     """Build a human-readable markdown description from OCR components."""
-    from app.services.ocr.base import OCRResult  # noqa: F811
-
     if getattr(ocr_result, "raw_text", None):
         return ocr_result.raw_text
 

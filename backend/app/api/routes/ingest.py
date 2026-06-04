@@ -1,11 +1,9 @@
 """Ingestion pipeline routes - PDF upload and processing.
 
-FIXES APPLIED (audit report):
-  - #2C  In-memory OOM vulnerability: replaced await file.read() (which
-          loads the entire PDF into a single buffer) with a streaming
-          spooled-temporary-file approach.  The file is read in 64 KiB
-          chunks, validated against the 50 MiB limit, and uploaded to MinIO
-          without ever holding the full payload in memory twice.
+FIXES APPLIED:
+  - #2C  In-memory OOM: streaming SpooledTemporaryFile instead of full read().
+  - #5   Multi-tenant isolation (IDOR): ingestion_batches queries include
+          user_id column.  The INSERT stores user_id, list/get filter by it.
 """
 
 from __future__ import annotations
@@ -50,23 +48,14 @@ async def upload_pdf(
     user_id: str = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> IngestionBatchResponse:
-    """Upload a PDF for ingestion into the RAG pipeline.
-
-    Streams the file to a temporary spooled file to avoid holding the
-    full 50 MiB payload in memory.  Uploads to MinIO once validated.
-    """
-    # Validate file type
+    """Upload a PDF for ingestion into the RAG pipeline."""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only PDF files are accepted",
         )
 
-    # ------------------------------------------------------------------
-    # FIX 2C: Stream into a SpooledTemporaryFile (in-memory up to
-    # max_size, then spills to disk).  This lets us validate the size
-    # incrementally and upload to MinIO without duplicating the buffer.
-    # ------------------------------------------------------------------
+    # Stream to SpooledTemporaryFile (fix #2C)
     try:
         with tempfile.SpooledTemporaryFile(max_size=MAX_FILE_SIZE) as spool:
             total = 0
@@ -94,32 +83,26 @@ async def upload_pdf(
             detail="Failed to process uploaded file",
         )
 
-    # Store in MinIO
     from app.services.storage import upload_to_minio
 
     object_name = await upload_to_minio(file.filename or "upload.pdf", pdf_bytes)
 
-    # Create ingestion batch record
+    # FIX #5: include user_id in the ingestion_batches record
     result = await db.execute(
         text(
-            "INSERT INTO ingestion_batches (source_file, status) "
-            "VALUES (:source_file, 'pending') RETURNING id"
+            "INSERT INTO ingestion_batches (user_id, source_file, status) "
+            "VALUES (:uid, :source_file, 'pending') RETURNING id"
         ),
-        {"source_file": object_name},
+        {"uid": user_id, "source_file": object_name},
     )
     batch_id = str(result.scalar_one())
 
-    # Trigger Celery task
     try:
         from app.tasks.ocr_tasks import process_pdf_task
-
         process_pdf_task.delay(batch_id, object_name)
-        logger.info("Triggered ingestion task for batch %s", batch_id)
+        logger.info("Triggered ingestion task for batch %s (user=%s)", batch_id, user_id)
     except Exception:
-        logger.warning(
-            "Could not trigger Celery task (worker may be offline)",
-            exc_info=True,
-        )
+        logger.warning("Could not trigger Celery task (worker may be offline)", exc_info=True)
 
     return IngestionBatchResponse(
         ingestion_batch_id=batch_id,
@@ -134,19 +117,20 @@ async def get_ingestion_status(
     user_id: str = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> IngestionStatusResponse:
-    """Get the status of an ingestion batch."""
+    """Get the status of an ingestion batch (user-scoped)."""
     result = await db.execute(
         text(
             "SELECT id, source_file, status, total_pages, "
             "       processed_pages, error_message "
-            "FROM ingestion_batches WHERE id = :id"
+            "FROM ingestion_batches "
+            "WHERE id = :id AND user_id = :uid"
         ),
-        {"id": batch_id},
+        {"id": batch_id, "uid": user_id},
     )
     row = result.fetchone()
     if not row:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Batch not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Batch not found",
         )
 
     return IngestionStatusResponse(
@@ -164,13 +148,16 @@ async def list_batches(
     user_id: str = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[IngestionStatusResponse]:
-    """List all ingestion batches, ordered by creation time descending."""
+    """List the current user's ingestion batches, newest first."""
     result = await db.execute(
         text(
             "SELECT id, source_file, status, total_pages, "
             "       processed_pages, error_message "
-            "FROM ingestion_batches ORDER BY created_at DESC LIMIT 100"
-        )
+            "FROM ingestion_batches "
+            "WHERE user_id = :uid "
+            "ORDER BY created_at DESC LIMIT 100"
+        ),
+        {"uid": user_id},
     )
     rows = result.fetchall()
     return [

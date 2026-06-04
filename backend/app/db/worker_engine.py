@@ -1,16 +1,20 @@
 """Shared async engine for Celery workers.
 
+FIXES APPLIED:
+  - #1  Event loop RuntimeError: get_worker_session is now an async function
+         that uses asyncio.Lock to lazily initialise the engine.  Celery tasks
+         call `async with await get_worker_session() as db:` inside their
+         asyncio.run() block — no run_until_complete on a running loop.
+
 Provides a single, long-lived async engine + session factory that all Celery
 tasks share.  The engine is lazily created on first use and explicitly disposed
 via `dispose_worker_engine()` on worker shutdown, preventing the connection-pool
-leak described in the audit.
+leak.
 
 Usage in a Celery task:
 
-    from app.db.worker_engine import get_worker_session
-
     async def _work():
-        async with get_worker_session() as db:
+        async with await get_worker_session() as db:
             ...
 
     asyncio.run(_work())
@@ -20,7 +24,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import AsyncIterator
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -57,28 +60,21 @@ async def _get_engine() -> AsyncEngine:
             pool_pre_ping=True,
         )
         _session_factory = async_sessionmaker(
-            _engine, class_=AsyncSession, expire_on_commit=False
+            _engine, class_=AsyncSession, expire_on_commit=False,
         )
         logger.info("Created shared worker async engine")
         return _engine
 
 
-def get_worker_session() -> AsyncSession:
-    """Return an async session created from the shared engine.
+async def get_worker_session() -> AsyncSession:
+    """Return an async session from the shared engine.
 
-    This is a *sync* factory so Celery tasks can call it from non-async scope,
-    but the returned session must be used inside an async context.
+    Must be awaited::
+
+        async with await get_worker_session() as db:
+            ...
     """
-    if _session_factory is None:
-        # Called before first async init — force synchronous init
-        import asyncio as _asyncio
-        try:
-            loop = _asyncio.get_running_loop()
-        except RuntimeError:
-            loop = _asyncio.new_event_loop()
-            _asyncio.set_event_loop(loop)
-        loop.run_until_complete(_get_engine())
-
+    engine = await _get_engine()
     assert _session_factory is not None
     return _session_factory()
 

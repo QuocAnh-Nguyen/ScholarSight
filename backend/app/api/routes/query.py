@@ -1,9 +1,11 @@
 """Query routes - RAG-powered Q&A with source citations.
 
-FIXES APPLIED (audit report):
-  - #1B  Disconnected source citations: the route now filters citations to
-          only those doc_ids the LLM actually cited (from synthesize_answer),
-          using the semantic search results to look up the metadata.
+FIXES APPLIED:
+  - #1B  Disconnected source citations: filtered to LLM-cited ids only.
+  - #3   Broken citation linkage: the LLM cites parent_doc_id (the "big"
+          document UUID shown in the prompt), not component UUIDs.  We now
+          build a parent_doc_id → search-metadata reverse mapping via a
+          lightweight DB query, so parent citations resolve correctly.
 """
 
 from __future__ import annotations
@@ -87,7 +89,7 @@ async def submit_query(
             detail="Embedding service unavailable",
         )
 
-    # Step 2: Semantic search
+    # Step 2: Semantic search → returns component-level doc_ids ("small")
     from app.services.retrieval.semantic_search import semantic_search
 
     search_results = await semantic_search(
@@ -108,47 +110,87 @@ async def submit_query(
             ),
         )
 
-    # Build lookup: component_uuid → search metadata
+    # ------------------------------------------------------------------
+    # FIX #3: Build TWO lookups:
+    #   search_lookup:  component_uuid → search metadata  (for fallback)
+    #   parent_lookup:  parent_doc_id  → best search metadata
+    #
+    # The LLM prompt uses [Tài liệu: parent_doc_id], so cited_doc_ids
+    # are parent-level UUIDs.  We resolve them via parent_lookup.
+    # ------------------------------------------------------------------
+    component_uuids: list[str] = [r["doc_id"] for r in search_results]
     search_lookup: dict[str, dict] = {
         r["doc_id"]: r for r in search_results
     }
 
+    # Query the DB to map component_uuids → parent_doc_id
+    parent_map: dict[str, str] = {}  # component_uuid → parent_doc_id
+    if component_uuids:
+        placeholders = ", ".join(
+            f":c{i}" for i in range(len(component_uuids))
+        )
+        params = {f"c{i}": uid for i, uid in enumerate(component_uuids)}
+        rows = await db.execute(
+            text(
+                f"SELECT id, parent_doc_id FROM raw_components "
+                f"WHERE id IN ({placeholders})"
+            ),
+            params,
+        )
+        for row in rows.fetchall():
+            parent_map[str(row[0])] = str(row[1])
+
+    # parent_lookup: parent_doc_id → best (highest-score) search metadata
+    parent_lookup: dict[str, dict] = {}
+    for r in search_results:
+        pid = parent_map.get(r["doc_id"])
+        if pid is None:
+            continue
+        if pid not in parent_lookup or r["score"] > parent_lookup[pid]["score"]:
+            parent_lookup[pid] = r
+
     # Step 3: Small-to-Big context retrieval
     from app.services.retrieval.context_retriever import retrieve_context_groups
 
-    component_uuids = list(search_lookup.keys())
     context_groups = await retrieve_context_groups(db, component_uuids)
 
-    # Step 4: Synthesize answer
+    # Step 4: Synthesize answer — cited_doc_ids are parent_doc_id values
     from app.services.llm.synthesizer import synthesize_answer
 
-    # Note: cited_doc_ids are component-level UUIDs that the LLM actually used
     answer, cited_doc_ids = await synthesize_answer(body.query, context_groups)
 
     # ------------------------------------------------------------------
-    # FIX 1B: Only include citations that the LLM actually cited.
-    # Build a lookup from parent_doc_id → component_uuid for cited ids.
-    # If cited_doc_ids is empty (regex missed), fall back to all search
-    # results to avoid a silent empty-citation UX bug.
+    # Resolve citations: map each cited parent_doc_id → search metadata
+    # via parent_lookup.  Fall back to search_lookup if parent not found.
     # ------------------------------------------------------------------
-    effective_cited = set(cited_doc_ids) if cited_doc_ids else set(search_lookup.keys())
+    effective_cited: set[str]
+    if cited_doc_ids:
+        effective_cited = set(cited_doc_ids)
+    else:
+        # No citations extracted → fall back to all parent_ids
+        effective_cited = set(parent_lookup.keys())
 
     citations: list[SourceCitation] = []
-    cited_set: set[str] = set()
+    seen: set[str] = set()
 
     for cid in effective_cited:
-        meta = search_lookup.get(cid)
+        if cid in seen:
+            continue
+
+        # Try parent_lookup first (cid is a parent_doc_id)
+        meta = parent_lookup.get(cid)
         if meta is None:
-            # The cited id might be a parent_doc_id from older rows —
-            # still try to derive something useful.
-            logger.debug("Cited doc_id %s not in search results — skipping citation", cid)
+            # Maybe the LLM cited a component UUID directly — try search_lookup
+            meta = search_lookup.get(cid)
+
+        if meta is None:
+            logger.debug("Cited id %s not found in either lookup — skipping", cid)
             continue
-        if cid in cited_set:
-            continue
-        cited_set.add(cid)
+
+        seen.add(cid)
         citations.append(
             SourceCitation(
-                doc_id=meta["doc_id"],
+                doc_id=cid,  # parent_doc_id for frontend reference
                 component_type=meta["component_type"],
                 summary=meta["summary_text"],
                 image_url=meta.get("image_url"),
@@ -169,7 +211,7 @@ async def submit_query(
                 {
                     "uid": user_id,
                     "q": body.query,
-                    "docs": list(cited_set),
+                    "docs": list(seen),
                     "ans": answer,
                     "cit": None,
                     "scores": [r["score"] for r in search_results],
