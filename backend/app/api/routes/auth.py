@@ -110,3 +110,8 @@ async def _seed_default_roadmap(db: AsyncSession, user_id: str) -> None:
             ),
             {"uid": user_id, "t": title, "d": desc, "m": month, "c": category, "s": idx},
         )
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh(user_id: str = Depends(require_user)) -> TokenResponse:
+    """Refresh the access token. Requires a valid JWT (via Authorization header)."""
+    token = create_access_token({"sub": str(user_id)})
+    return TokenResponse(access_token=token)

@@ -8,6 +8,9 @@ FIXES APPLIED:
           text to DeepSeek for structured parsing (tables, formatting, etc.).
           This avoids HTTP 400 errors while still leveraging the LLM for
           intelligent extraction.
+  - #1F  Event-loop blocking: offloads PyPDF2 (CPU-bound) to a thread via
+          asyncio.to_thread so the Celery worker's event loop stays free
+          for heartbeat pings and other async operations.
 
 If PyPDF2 is unavailable the service raises OCRExtractionError, allowing the
 chain to fall through to Mistral / PageIndex.
@@ -15,6 +18,7 @@ chain to fall through to Mistral / PageIndex.
 
 from __future__ import annotations
 
+import asyncio
 import io
 import json as _json
 import logging
@@ -63,12 +67,15 @@ Rules:
 - Set confidence between 0.0 and 1.0 for every block.
 - Do NOT invent information not present in the raw text."""
 
-
 class DeepSeekOCRService(BaseOCRService):
     """OCR service that combines PyPDF2 text extraction + DeepSeek LLM parsing.
 
     PyPDF2 extracts raw text locally (fast, no API call for basic extraction).
     DeepSeek then structures the raw text into components (tables, paragraphs).
+
+    Fix #1F: PyPDF2 extraction is CPU-bound and synchronous.  We offload it to
+    a thread via asyncio.to_thread() so the Celery worker event loop stays
+    responsive during large PDF parsing.
     """
 
     def __init__(self, api_key: str = "", api_url: str = DEEPSEEK_CHAT_URL):
@@ -84,7 +91,11 @@ class DeepSeekOCRService(BaseOCRService):
     # structured parsing.  No hallucinated "file" content type.
     # ------------------------------------------------------------------
     def _extract_raw_text(self, pdf_bytes: bytes, filename: str) -> str:
-        """Extract raw text from PDF bytes using PyPDF2."""
+        """Extract raw text from PDF bytes using PyPDF2.
+
+        This is CPU-bound and synchronous — callers should use
+        asyncio.to_thread() to avoid blocking the event loop (Fix #1F).
+        """
         try:
             from PyPDF2 import PdfReader
         except ImportError:
@@ -106,8 +117,15 @@ class DeepSeekOCRService(BaseOCRService):
         if not self.api_key:
             raise OCRExtractionError("No API key configured for DeepSeek OCR")
 
-        # Step 1: local text extraction
-        raw_text = self._extract_raw_text(pdf_bytes, filename)
+        # ------------------------------------------------------------------
+        # Fix #1F: Offload PyPDF2 to a thread so the event loop isn't blocked.
+        # Without this, the Celery worker can't send heartbeat pings during
+        # large PDF parsing, causing the broker to think the worker died.
+        # ------------------------------------------------------------------
+        raw_text = await asyncio.to_thread(
+            self._extract_raw_text, pdf_bytes, filename,
+        )
+
         if not raw_text.strip():
             raise OCRExtractionError("PyPDF2 extracted no text from the document")
 

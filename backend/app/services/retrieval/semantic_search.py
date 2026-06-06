@@ -6,6 +6,8 @@ FIXES APPLIED (audit report):
           parent_doc_id for sibling-fetching.
   - Filtering: explicitly excludes rows with NULL embeddings to avoid
           pgvector errors from the race-condition period.
+  - #1C  image_url JOIN: LEFT JOIN raw_components to pull image_url so
+          frontend CitationSidePanel can render document previews.
 """
 
 from __future__ import annotations
@@ -16,7 +18,6 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
-
 
 async def semantic_search(
     db: AsyncSession,
@@ -30,6 +31,9 @@ async def semantic_search(
     raw_components.id).  The context_retriever then maps these to
     parent_doc_id for Small-to-Big sibling retrieval.
 
+    Fix #1C: LEFT JOIN raw_components to include image_url in results
+    so CitationSidePanel thumbnails work end-to-end.
+
     Args:
         db: Async database session.
         query_embedding: 1024-dim query embedding vector.
@@ -37,7 +41,7 @@ async def semantic_search(
         threshold: Minimum cosine similarity threshold.
 
     Returns:
-        List of matching results with doc_id, summary, score, etc.
+        List of matching results with doc_id, summary, score, image_url, etc.
     """
     embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
 
@@ -45,17 +49,19 @@ async def semantic_search(
         text(
             """
             SELECT
-                doc_id,
-                component_type,
-                summary_text,
-                source_page,
-                university_name,
-                academic_year,
-                1 - (embedding <=> :emb::vector) AS cosine_score
-            FROM summary_embeddings
-            WHERE embedding IS NOT NULL
-              AND 1 - (embedding <=> :emb::vector) > :threshold
-            ORDER BY embedding <=> :emb::vector ASC
+                se.doc_id,
+                se.component_type,
+                se.summary_text,
+                se.source_page,
+                se.university_name,
+                se.academic_year,
+                1 - (se.embedding <=> :emb::vector) AS cosine_score,
+                rc.image_url
+            FROM summary_embeddings se
+            LEFT JOIN raw_components rc ON rc.id = se.doc_id
+            WHERE se.embedding IS NOT NULL
+              AND 1 - (se.embedding <=> :emb::vector) > :threshold
+            ORDER BY se.embedding <=> :emb::vector ASC
             LIMIT :top_k
             """
         ),
@@ -73,6 +79,7 @@ async def semantic_search(
             "university_name": row[4],
             "academic_year": row[5],
             "score": float(row[6]),
+            "image_url": row[7],            # Fix #1C — may be None for text/table
         })
 
     logger.info(

@@ -22,14 +22,16 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://localhost",
         "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
     ]
 
     # Database
     DATABASE_URL: str = (
-        "postgresql+asyncpg://scholarsight:scholarsight_dev@localhost:5432/scholarsight"
+        "postgresql+asyncpg://scholarsight:scholarsight_dev@localhost:5433/scholarsight"
     )
     DATABASE_URL_SYNC: str = (
-        "postgresql://scholarsight:scholarsight_dev@localhost:5432/scholarsight"
+        "postgresql://scholarsight:scholarsight_dev@localhost:5433/scholarsight"
     )
 
     # Redis

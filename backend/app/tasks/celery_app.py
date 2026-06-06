@@ -1,6 +1,12 @@
-"""Celery application configuration for async task processing."""
+"""Celery application configuration for async task processing.
+
+FIXES APPLIED:
+  - #1D  Worker shutdown signal: dispose_worker_engine() is now called on
+         worker_process_shutdown to prevent PostgreSQL connection pool leaks.
+"""
 
 from celery import Celery
+from celery.signals import worker_process_shutdown
 
 from app.core.config import settings
 
@@ -30,6 +36,29 @@ celery_app.conf.update(
         "app.tasks.embedding_tasks.*": {"queue": "embedding_generation"},
     },
 )
+
+# ---------------------------------------------------------------------------
+# Fix #1D: Register a worker_process_shutdown handler to dispose the shared
+# async engine.  Without this, every worker recycle orphans PostgreSQL
+# connections, eventually exhausting the connection pool.
+# ---------------------------------------------------------------------------
+
+@worker_process_shutdown.connect
+def _cleanup_worker_engine(**kwargs):
+    """Dispose the shared async engine on worker process shutdown."""
+    import asyncio
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        from app.db.worker_engine import dispose_worker_engine
+
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(dispose_worker_engine())
+        loop.close()
+        logger.info("Celery worker engine disposed via shutdown signal")
+    except Exception:
+        logger.warning("Failed to dispose worker engine on shutdown", exc_info=True)
 
 # ---------------------------------------------------------------------------
 # Task discovery — import task modules so the @celery_app.task decorator

@@ -6,6 +6,8 @@ FIXES APPLIED:
           it, list/get/delete filter by it, and the search endpoint filters
           raw_components by parent_doc_id + user_id.
   - #6   Document semantic search: wired to pgvector via embedding service.
+  - #1E  Memory DoS fix: file upload now streams in 64 KiB chunks and
+          rejects oversized files *before* buffering the full payload.
 """
 
 from __future__ import annotations
@@ -46,22 +48,18 @@ class DocumentResponse(BaseModel):
     fileSize: int
     uploadedAt: str
 
-
 class DocumentUploadResponse(BaseModel):
     id: str
     status: str
-
 
 class DocumentSearchResult(BaseModel):
     doc_id: str
     chunk_text: str
     relevance_score: float
 
-
 class DocumentSearchRequest(BaseModel):
     query: str
     top_k: int = 5
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -78,11 +76,29 @@ TYPE_MAP: dict[str, str] = {
     "txt": "text",
 }
 
-
 def _determine_type(filename: str) -> str:
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     return TYPE_MAP.get(ext, "text")
 
+# ---------------------------------------------------------------------------
+# Fix #1E: Chunked streaming read that rejects oversize files BEFORE
+# buffering the entire payload into memory.
+# ---------------------------------------------------------------------------
+
+async def _read_with_size_check(file: UploadFile) -> bytes:
+    """Read upload in CHUNK_SIZE blocks, aborting early if > MAX_FILE_SIZE."""
+    buffer = bytearray()
+    while True:
+        chunk = await file.read(CHUNK_SIZE)
+        if not chunk:
+            break
+        buffer.extend(chunk)
+        if len(buffer) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="File exceeds 50 MB limit",
+            )
+    return bytes(buffer)
 
 # ---------------------------------------------------------------------------
 # Endpoints
@@ -113,7 +129,6 @@ async def list_documents(
         for r in rows
     ]
 
-
 @router.get("/{document_id}", response_model=DocumentResponse)
 async def get_document(
     document_id: str,
@@ -138,7 +153,6 @@ async def get_document(
         id=str(row[0]), title=row[1], description=row[2], type=row[3],
         status=row[4], pageCount=row[5], fileSize=row[6], uploadedAt=row[7],
     )
-
 
 @router.post("/upload", response_model=DocumentUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
@@ -165,15 +179,11 @@ async def upload_document(
         )
 
     # ------------------------------------------------------------------
-    # FIX #2C (streaming) + #5 (user_id): stream to validate size,
-    # then upload to MinIO and store with user_id.
+    # Fix #1E: Stream-validate size BEFORE buffering the entire file.
+    # The helper reads in 64 KiB chunks and raises 413 immediately if
+    # the cumulative buffer exceeds MAX_FILE_SIZE.
     # ------------------------------------------------------------------
-    contents = await file.read()
-    if len(contents) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File exceeds 50 MB limit",
-        )
+    contents = await _read_with_size_check(file)
 
     from app.services.storage import upload_to_minio
 
@@ -213,7 +223,6 @@ async def upload_document(
     )
     return DocumentUploadResponse(id=doc_id, status="processing")
 
-
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(
     document_id: str,
@@ -232,7 +241,6 @@ async def delete_document(
             status_code=status.HTTP_404_NOT_FOUND, detail="Document not found",
         )
     await db.commit()
-
 
 # ---------------------------------------------------------------------------
 # FIX #6: Per-document semantic search — wires to the embedding service

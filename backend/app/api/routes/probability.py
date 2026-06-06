@@ -1,4 +1,9 @@
-"""Probability engine routes - percentile matching and competitive map."""
+"""Probability engine routes - percentile matching and competitive map.
+
+FIXES APPLIED:
+  - #1B  Metadata endpoints: GET /universities and GET /methods for
+         dynamic Select dropdown population in the frontend.
+"""
 
 import logging
 from typing import Optional
@@ -15,6 +20,23 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# ---------------------------------------------------------------------------
+# Metadata schemas (Fix #1B)
+# ---------------------------------------------------------------------------
+
+class UniversityMeta(BaseModel):
+    id: str      # university_name value used in historical_scores
+    name: str    # display name
+    code: str    # short code (same as name if no code exists)
+
+class AdmissionMethod(BaseModel):
+    value: str      # e.g. "regular", "priority", "aptitude_test"
+    label: str      # Vietnamese display label
+    labelKey: str   # i18n key e.g. "prob.method.regular"
+
+# ---------------------------------------------------------------------------
+# Assessment schemas
+# ---------------------------------------------------------------------------
 
 class ProbabilityRequest(BaseModel):
     score: float
@@ -22,13 +44,11 @@ class ProbabilityRequest(BaseModel):
     major: str
     admission_method: str = "regular"  # regular, priority, aptitude_test
 
-
 class TierResult(BaseModel):
     tier: str  # safety, target, reach
     emoji: str
     label: str
     percentile_rank: float
-
 
 class CompetitiveMapData(BaseModel):
     candidate_score: float
@@ -37,12 +57,91 @@ class CompetitiveMapData(BaseModel):
     tier_boundaries: dict
     historical_years: list[dict]
 
-
 class ProbabilityResponse(BaseModel):
     tier: TierResult
     competitive_map: CompetitiveMapData
     disclaimer: str = "⚠️ Dữ liệu dựa trên thống kê lịch sử. Kết quả thực tế có thể khác biệt."
 
+# ---------------------------------------------------------------------------
+# Hardcoded fallback lists — used when the DB has no historical_scores data.
+# These mirror the frontend's hardcoded arrays so the UI works immediately
+# after a fresh install with no ingested data.
+# ---------------------------------------------------------------------------
+
+HARDCODED_UNIVERSITIES: list[dict] = [
+    {"name": "Đại học Bách Khoa Hà Nội", "code": "HUST"},
+    {"name": "Đại học Quốc gia Hà Nội", "code": "VNU"},
+    {"name": "Đại học Quốc gia TP.HCM", "code": "VNUHCM"},
+    {"name": "Đại học Kinh tế Quốc dân", "code": "NEU"},
+    {"name": "Đại học Ngoại thương", "code": "FTU"},
+    {"name": "Đại học Sư phạm Hà Nội", "code": "HNUE"},
+    {"name": "Đại học Y Hà Nội", "code": "HMU"},
+    {"name": "Đại học Y Dược TP.HCM", "code": "UMP"},
+    {"name": "Đại học FPT", "code": "FPTU"},
+    {"name": "Đại học RMIT Việt Nam", "code": "RMIT"},
+]
+
+HARDCODED_METHODS: list[dict] = [
+    {"value": "regular",   "label": "Xét tuyển thường",        "labelKey": "prob.method.regular"},
+    {"value": "priority",  "label": "Xét tuyển ưu tiên",       "labelKey": "prob.method.priority"},
+    {"value": "aptitude_test", "label": "Xét tuyển năng lực",  "labelKey": "prob.method.aptitude"},
+]
+
+# ---------------------------------------------------------------------------
+# Metadata endpoints (Fix #1B)
+# ---------------------------------------------------------------------------
+
+@router.get("/universities", response_model=list[UniversityMeta])
+async def list_universities(
+    db: AsyncSession = Depends(get_db),
+) -> list[UniversityMeta]:
+    """Return a list of known universities for the Select dropdown.
+
+    Queries DISTINCT university_name from historical_scores.  Falls back
+    to a hardcoded list if the table is empty (e.g. fresh install).
+    """
+    try:
+        result = await db.execute(
+            text(
+                "SELECT DISTINCT university_name FROM historical_scores "
+                "ORDER BY university_name"
+            )
+        )
+        rows = result.fetchall()
+        if rows:
+            return [
+                UniversityMeta(
+                    id=row[0],
+                    name=row[0],
+                    code=row[0][:8].upper().replace(" ", ""),
+                )
+                for row in rows
+            ]
+    except Exception:
+        logger.warning("Failed to query historical_scores for universities", exc_info=True)
+
+    # Fallback to hardcoded list
+    return [
+        UniversityMeta(id=u["name"], name=u["name"], code=u["code"])
+        for u in HARDCODED_UNIVERSITIES
+    ]
+
+
+@router.get("/methods", response_model=list[AdmissionMethod])
+async def list_admission_methods() -> list[AdmissionMethod]:
+    """Return the supported admission methods for the Select dropdown.
+
+    Always returns a static curated list — these values are the valid
+    enum options for the admission_method column in historical_scores.
+    """
+    return [
+        AdmissionMethod(value=m["value"], label=m["label"], labelKey=m["labelKey"])
+        for m in HARDCODED_METHODS
+    ]
+
+# ---------------------------------------------------------------------------
+# Assessment endpoints
+# ---------------------------------------------------------------------------
 
 @router.post("/assess", response_model=ProbabilityResponse)
 async def assess_probability(
@@ -124,7 +223,6 @@ async def assess_probability(
             logger.warning(f"Failed to store probability assessment: {e}")
 
     return ProbabilityResponse(tier=tier, competitive_map=competitive_map)
-
 
 @router.get("/history")
 async def get_assessment_history(

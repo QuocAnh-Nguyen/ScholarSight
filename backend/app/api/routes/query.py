@@ -6,13 +6,18 @@ FIXES APPLIED:
           document UUID shown in the prompt), not component UUIDs.  We now
           build a parent_doc_id → search-metadata reverse mapping via a
           lightweight DB query, so parent citations resolve correctly.
+  - #1A  SSE streaming endpoint: POST /api/query/stream emits SSE tokens
+          for the chat UI, reusing the same RAG pipeline as the sync endpoint.
 """
 
 from __future__ import annotations
 
+import asyncio
+import json as _json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,12 +39,10 @@ HIGH_RISK_KEYWORDS = [
     "ưu tiên khu vực", "cộng điểm", "diện đặc cách",
 ]
 
-
 class QueryRequest(BaseModel):
     query: str
     top_k: int = 5
     threshold: float = 0.75
-
 
 class SourceCitation(BaseModel):
     doc_id: str
@@ -48,7 +51,6 @@ class SourceCitation(BaseModel):
     image_url: str | None = None
     cosine_score: float
 
-
 class QueryResponse(BaseModel):
     answer: str
     disclaimer: str = DISCLAIMER
@@ -56,18 +58,35 @@ class QueryResponse(BaseModel):
     human_fallback: bool = False
     fallback_reason: str | None = None
 
+# ------------------------------------------------------------------
+# Shared RAG pipeline — used by both sync and streaming endpoints.
+# ------------------------------------------------------------------
 
-@router.post("", response_model=QueryResponse)
-async def submit_query(
+class _PipelineResult:
+    """Internal result from the RAG pipeline before formatting."""
+    __slots__ = ("answer", "citations", "human_fallback", "fallback_reason",
+                 "search_results", "seen_doc_ids")
+
+    def __init__(self, answer, citations, human_fallback, fallback_reason,
+                 search_results, seen_doc_ids):
+        self.answer = answer
+        self.citations = citations
+        self.human_fallback = human_fallback
+        self.fallback_reason = fallback_reason
+        self.search_results = search_results
+        self.seen_doc_ids = seen_doc_ids
+
+
+async def _run_rag_pipeline(
     body: QueryRequest,
-    user_id: str | None = Depends(get_current_user_id),
-    db: AsyncSession = Depends(get_db),
-) -> QueryResponse:
-    """Submit a query to the RAG pipeline."""
+    user_id: str | None,
+    db: AsyncSession,
+) -> _PipelineResult:
+    """Execute the full RAG pipeline and return a _PipelineResult."""
     query_lower = body.query.lower()
     for keyword in HIGH_RISK_KEYWORDS:
         if keyword in query_lower:
-            return QueryResponse(
+            return _PipelineResult(
                 answer="Câu hỏi này cần tư vấn chuyên sâu từ chuyên gia.",
                 citations=[],
                 human_fallback=True,
@@ -75,6 +94,8 @@ async def submit_query(
                     f"Phát hiện từ khóa nhạy cảm: '{keyword}'. "
                     "Vui lòng liên hệ chuyên gia tư vấn."
                 ),
+                search_results=[],
+                seen_doc_ids=set(),
             )
 
     # Step 1: Vectorize
@@ -97,7 +118,7 @@ async def submit_query(
     )
 
     if not search_results:
-        return QueryResponse(
+        return _PipelineResult(
             answer=(
                 "Xin lỗi, tôi không tìm thấy thông tin phù hợp trong cơ sở dữ liệu. "
                 "Vui lòng thử diễn đạt lại câu hỏi hoặc liên hệ chuyên gia."
@@ -108,6 +129,8 @@ async def submit_query(
                 "Không tìm thấy tài liệu phù hợp "
                 "(cosine similarity dưới ngưỡng)."
             ),
+            search_results=[],
+            seen_doc_ids=set(),
         )
 
     # ------------------------------------------------------------------
@@ -220,7 +243,118 @@ async def submit_query(
         except Exception:
             logger.warning("Failed to store query history", exc_info=True)
 
-    return QueryResponse(
-        answer=f"{DISCLAIMER}\n\n{answer}",
+    result = _PipelineResult(
+        answer=answer,
         citations=citations,
+        human_fallback=False,
+        fallback_reason=None,
+        search_results=search_results,
+        seen_doc_ids=seen,
+    )
+    return result
+
+
+# ------------------------------------------------------------------
+# Endpoints
+# ------------------------------------------------------------------
+
+@router.post("", response_model=QueryResponse)
+async def submit_query(
+    body: QueryRequest,
+    user_id: str | None = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> QueryResponse:
+    """Submit a query to the RAG pipeline (synchronous JSON response)."""
+    result = await _run_rag_pipeline(body, user_id, db)
+
+    return QueryResponse(
+        answer=f"{DISCLAIMER}\n\n{result.answer}",
+        citations=result.citations,
+        human_fallback=result.human_fallback,
+        fallback_reason=result.fallback_reason,
+    )
+
+
+# ------------------------------------------------------------------
+# SSE STREAMING ENDPOINT  (Fix #1A)
+#
+# The frontend ChatMessages + useChat expect POST /api/query/stream
+# returning text/event-stream.  We run the same RAG pipeline but
+# emit the answer sentence-by-sentence as SSE "token" events,
+# followed by a "complete" event with citations.
+# ------------------------------------------------------------------
+
+SSE_TOKEN_SEPARATORS = (". ", "。 ", ".\n", "。\n", "\n")
+
+
+def _split_into_tokens(text: str) -> list[str]:
+    """Split answer text into sentence-level tokens for SSE streaming."""
+    tokens: list[str] = []
+    remaining = text
+    while remaining:
+        best = -1
+        best_len = 0
+        for sep in SSE_TOKEN_SEPARATORS:
+            idx = remaining.find(sep)
+            if idx != -1:
+                end = idx + len(sep)
+                if best == -1 or idx < best:
+                    best = idx
+                    best_len = len(sep)
+        if best == -1:
+            tokens.append(remaining)
+            break
+        tokens.append(remaining[:best + best_len])
+        remaining = remaining[best + best_len:]
+    return tokens
+
+
+@router.post("/stream")
+async def submit_query_stream(
+    body: QueryRequest,
+    user_id: str | None = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit a query and stream the answer via Server-Sent Events."""
+    result = await _run_rag_pipeline(body, user_id, db)
+
+    full_answer = f"{DISCLAIMER}\n\n{result.answer}"
+    tokens = _split_into_tokens(full_answer)
+
+    async def event_generator():
+        # Emit each sentence as a "token" event
+        for tok in tokens:
+            payload = _json.dumps({"type": "token", "content": tok}, ensure_ascii=False)
+            yield f"data: {payload}\n\n"
+            await asyncio.sleep(0)  # yield to the event loop
+
+        # Emit completion metadata
+        citations_payload = [
+            {
+                "doc_id": c.doc_id,
+                "component_type": c.component_type,
+                "summary": c.summary,
+                "image_url": c.image_url,
+                "cosine_score": c.cosine_score,
+            }
+            for c in result.citations
+        ]
+        complete = _json.dumps(
+            {
+                "type": "complete",
+                "citations": citations_payload,
+                "human_fallback": result.human_fallback,
+            },
+            ensure_ascii=False,
+        )
+        yield f"data: {complete}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
