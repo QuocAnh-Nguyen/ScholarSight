@@ -109,6 +109,11 @@ export function useRoadmapBoard(
   );
 
   // -- Drag End ------------------------------------------------------------
+  //
+  // Fix #2B: Cross-column moves call moveTask() which now internally
+  // reorders the destination column after persisting the status change.
+  // Same-column reorders call reorder() directly.
+  //
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
       const { active, over } = event;
@@ -143,8 +148,8 @@ export function useRoadmapBoard(
         if (destIndex < 0) destIndex = colTasks.length;
       }
 
-      // Same column → reorder
       if (activeTask.status === destStatus) {
+        // Same column → reorder
         const colTasks = columns[destStatus] ?? [];
         const oldIndex = colTasks.findIndex((t) => t.id === activeId);
         if (oldIndex < 0) return;
@@ -161,10 +166,12 @@ export function useRoadmapBoard(
         }));
         await reorder(reorderItems);
       } else {
-        // Cross-column move
-        const adjustedIndex = destIndex;
-
-        await moveTask(activeId, destStatus, adjustedIndex);
+        // ------------------------------------------------------------------
+        // Fix #2B: Cross-column move — moveTask() now handles both the
+        // status change AND the destination column reorder internally.
+        // We no longer need a separate reorder() call here.
+        // ------------------------------------------------------------------
+        await moveTask(activeId, destStatus, destIndex);
       }
     },
     [tasks, columns, moveTask, reorder],

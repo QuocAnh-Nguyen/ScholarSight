@@ -7,7 +7,15 @@ import type { DocumentItem } from "@/lib/types";
 // Adapted from FastGPT's dataset/list/context.tsx provider pattern.
 //
 // FastGPT source: FastGPT-reference/pageComponents/dataset/list/context.tsx
+//
+// FIX 3A: Split the context into two providers by update frequency.
+//   - DocumentContext:  documents, CRUD ops, loading/error (rarely changes)
+//   - DocumentSearchContext: searchKey + filteredDocuments (changes per keystroke)
+// This prevents search input keystrokes from triggering re-renders of every
+// component that only needs document data (e.g. upload button, delete modals).
 // ---------------------------------------------------------------------------
+
+// -- Stable context (rare updates) ------------------------------------------
 
 export interface DocumentContextValue {
   /** All documents for the current user. */
@@ -20,11 +28,6 @@ export interface DocumentContextValue {
   loadDocuments: () => Promise<DocumentItem[]>;
   /** Delete a document by ID, then refresh the list. */
   deleteDocument: (id: string) => Promise<void>;
-  /** Filter documents by title (client-side). */
-  searchKey: string;
-  setSearchKey: React.Dispatch<React.SetStateAction<string>>;
-  /** Documents filtered by searchKey (case-insensitive title match). */
-  filteredDocuments: DocumentItem[];
 }
 
 const DocumentContext = createContext<DocumentContextValue>({
@@ -33,12 +36,29 @@ const DocumentContext = createContext<DocumentContextValue>({
   error: null,
   loadDocuments: () => Promise.resolve([]),
   deleteDocument: () => Promise.resolve(),
+});
+
+DocumentContext.displayName = "DocumentContext";
+
+// -- High-frequency search context ------------------------------------------
+
+export interface DocumentSearchContextValue {
+  /** Current search input value. */
+  searchKey: string;
+  setSearchKey: React.Dispatch<React.SetStateAction<string>>;
+  /** Documents filtered by searchKey (case-insensitive title/description match). */
+  filteredDocuments: DocumentItem[];
+}
+
+const DocumentSearchContext = createContext<DocumentSearchContextValue>({
   searchKey: "",
   setSearchKey: () => {},
   filteredDocuments: [],
 });
 
-DocumentContext.displayName = "DocumentContext";
+DocumentSearchContext.displayName = "DocumentSearchContext";
+
+// -- Provider ---------------------------------------------------------------
 
 /**
  * Context provider for document collection state.
@@ -46,6 +66,11 @@ DocumentContext.displayName = "DocumentContext";
  * Wraps children with document CRUD operations, loading state, and
  * client-side search filtering.  Requires that `<AuthProvider>` is
  * already mounted higher in the tree.
+ *
+ * Fix 3A: The search bar state (`searchKey` / `filteredDocuments`) lives in
+ * `DocumentSearchProvider` so keystrokes only re-render the search input
+ * and the document list — not components that only consume `documents`,
+ * `isLoading`, or CRUD operations.
  */
 export function DocumentProvider({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
@@ -83,6 +108,20 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
     [token],
   );
 
+  // Stable context value — searchKey is NOT a dependency.
+  const docValue = useMemo<DocumentContextValue>(
+    () => ({
+      documents,
+      isLoading,
+      error,
+      loadDocuments,
+      deleteDocument,
+    }),
+    [documents, isLoading, error, loadDocuments, deleteDocument],
+  );
+
+  // High-frequency search context — only consumers of filteredDocuments
+  // re-render on keystrokes.
   const filteredDocuments = useMemo(() => {
     if (!searchKey.trim()) return documents;
     const lower = searchKey.toLowerCase();
@@ -93,28 +132,40 @@ export function DocumentProvider({ children }: { children: React.ReactNode }) {
     );
   }, [documents, searchKey]);
 
-  const value = useMemo<DocumentContextValue>(
+  const searchValue = useMemo<DocumentSearchContextValue>(
     () => ({
-      documents,
-      isLoading,
-      error,
-      loadDocuments,
-      deleteDocument,
       searchKey,
       setSearchKey,
       filteredDocuments,
     }),
-    [documents, isLoading, error, loadDocuments, deleteDocument, searchKey, filteredDocuments],
+    [searchKey, filteredDocuments],
   );
 
-  return <DocumentContext.Provider value={value}>{children}</DocumentContext.Provider>;
+  return (
+    <DocumentContext.Provider value={docValue}>
+      <DocumentSearchContext.Provider value={searchValue}>
+        {children}
+      </DocumentSearchContext.Provider>
+    </DocumentContext.Provider>
+  );
 }
+
+// -- Hooks ------------------------------------------------------------------
 
 /** Access the document context. Must be used within a `<DocumentProvider>`. */
 export function useDocuments(): DocumentContextValue {
   const ctx = useContext(DocumentContext);
   if (!ctx) {
     throw new Error("useDocuments must be used within a DocumentProvider");
+  }
+  return ctx;
+}
+
+/** Access the document search context (searchKey + filteredDocuments). */
+export function useDocumentSearch(): DocumentSearchContextValue {
+  const ctx = useContext(DocumentSearchContext);
+  if (!ctx) {
+    throw new Error("useDocumentSearch must be used within a DocumentProvider");
   }
   return ctx;
 }

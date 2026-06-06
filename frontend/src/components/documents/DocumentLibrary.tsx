@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useDocuments } from "@/providers/DocumentProvider";
+import { useDocuments, useDocumentSearch } from "@/providers/DocumentProvider";
 import { DocumentCard } from "./DocumentCard";
 import { UploadDocumentModal } from "./UploadDocumentModal";
 
@@ -26,6 +26,9 @@ import { UploadDocumentModal } from "./UploadDocumentModal";
 //   - Delete confirmation dialog
 //
 // FastGPT source: FastGPT-reference/pageComponents/dataset/list/List.tsx
+//
+// FIX 3A: Uses useDocuments (stable) + useDocumentSearch (high-freq) to
+// avoid re-rendering non-search components on every keystroke.
 // ---------------------------------------------------------------------------
 
 interface DocumentLibraryProps {
@@ -36,13 +39,12 @@ export function DocumentLibrary({ onViewDocument }: DocumentLibraryProps) {
   const { t } = useTranslation();
   const {
     documents,
-    filteredDocuments,
     isLoading,
     loadDocuments,
     deleteDocument,
-    searchKey,
-    setSearchKey,
   } = useDocuments();
+
+  const { searchKey, setSearchKey, filteredDocuments } = useDocumentSearch();
 
   const [uploadOpen, setUploadOpen] = useState(false);
 

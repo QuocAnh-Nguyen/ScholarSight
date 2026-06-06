@@ -2,14 +2,16 @@ import type { Root, Text } from "mdast";
 import { visit } from "unist-util-visit";
 
 /**
- * Remark plugin that detects `[Tài liệu: <uuid>]` patterns in text nodes
- * and replaces them with `citationLink` MDAST nodes.
+ * Remark plugin that detects citation patterns in text nodes and replaces
+ * them with `citationLink` MDAST nodes.
  *
- * Pattern: [Tài liệu: <doc_id>]
- * - Captures the doc_id (UUID or slug)
- * - Replaces the bracketed text with a `citationLink` node
+ * FIX 2A: Regex now matches BOTH formats the backend LLM can produce:
+ *   - [Tài liệu: <uuid>]   (labeled, from the system prompt)
+ *   - [<uuid>]             (bare, if the LLM omits the label)
+ * The UUID is validated as 8-4-4-4-12 hex digits to avoid false positives
+ * on other bracketed text.
  */
-const CITATION_REGEX = /\[Tài liệu:\s*([^\]]+)\]/g;
+const CITATION_REGEX = /\[(?:Tài\s*liệu\s*:\s*)?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\]/g;
 
 interface CitationLinkNode {
   type: "citationLink";

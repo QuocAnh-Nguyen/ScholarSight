@@ -26,7 +26,8 @@ export function useRoadmap(): {
   addTask: (body: TaskCreate) => Promise<void>;
   editTask: (id: string, body: TaskUpdate) => Promise<void>;
   removeTask: (id: string) => Promise<void>;
-  /** Move a task to a new column + position (optimistic) */
+  /** Move a task to a new column + position (optimistic).
+   *  Also reorders the destination column on success (Fix #2B). */
   moveTask: (
     taskId: string,
     newStatus: TaskStatus,
@@ -42,6 +43,14 @@ export function useRoadmap(): {
   const [filter, setFilter] = useState<TaskFilter>({});
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
+
+  // -----------------------------------------------------------------------
+  // Fix #2C: Per-task snapshots for isolated rollback.
+  // Previously a single `snapshot` captured the full array, so a rollback
+  // for Task A could wipe out Task B's successful concurrent move.
+  // Now each task's pre-mutation state is stored independently.
+  // -----------------------------------------------------------------------
+  const taskSnapshotsRef = useRef<Map<string, TaskResponse>>(new Map());
 
   const refresh = useCallback(async () => {
     if (!token) return;
@@ -102,18 +111,27 @@ export function useRoadmap(): {
 
   /**
    * Optimistic move: immediately moves the task in local state, then
-   * persists the status change via the API.  Rolls back on failure.
+   * persists the status change via the API.  Rolls back ONLY the failed
+   * task on error (Fix #2C).  After success, reorders the destination
+   * column so sort_orders stay sequential (Fix #2B).
    */
   const moveTask = useCallback(
     async (taskId: string, newStatus: TaskStatus, newIndex: number) => {
       if (!token) return;
 
-      const snapshot = tasksRef.current;
-      const target = snapshot.find((t) => t.id === taskId);
+      const currentTasks = tasksRef.current;
+      const target = currentTasks.find((t) => t.id === taskId);
       if (!target) return;
 
+      // ------------------------------------------------------------------
+      // Fix #2C: Snapshot ONLY this task before mutating.
+      // ------------------------------------------------------------------
+      if (!taskSnapshotsRef.current.has(taskId)) {
+        taskSnapshotsRef.current.set(taskId, { ...target });
+      }
+
       // 1. Build optimistic state
-      const withoutTarget = snapshot.filter((t) => t.id !== taskId);
+      const withoutTarget = currentTasks.filter((t) => t.id !== taskId);
       const sameColTasks = withoutTarget
         .filter((t) => t.status === newStatus)
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -138,10 +156,32 @@ export function useRoadmap(): {
           status: newStatus,
           sort_order: newIndex,
         });
+
+        // ------------------------------------------------------------------
+        // Fix #2B: After a cross-column move succeeds, reorder the
+        // destination column so all tasks have sequential sort_order.
+        // ------------------------------------------------------------------
+        const destColTasks = optimisticState
+          .filter((t) => t.status === newStatus)
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+        const destReorderItems: ReorderItem[] = destColTasks.map((t, i) => ({
+          task_id: t.id,
+          sort_order: i,
+        }));
+        await reorderTasks(token, destReorderItems);
+
         setTasks((prev) => prev.map((t) => (t.id === taskId ? serverTask : t)));
+        taskSnapshotsRef.current.delete(taskId);
       } catch (e) {
         setError((e as Error).message);
-        setTasks(snapshot); // rollback
+        // ------------------------------------------------------------------
+        // Fix #2C: Roll back ONLY the failed task, not the entire array.
+        // ------------------------------------------------------------------
+        const snap = taskSnapshotsRef.current.get(taskId);
+        if (snap) {
+          setTasks((prev) => prev.map((t) => (t.id === taskId ? snap : t)));
+          taskSnapshotsRef.current.delete(taskId);
+        }
       }
     },
     [token],
@@ -150,7 +190,20 @@ export function useRoadmap(): {
   const reorder = useCallback(
     async (items: ReorderItem[]) => {
       if (!token) return;
-      const snapshot = tasksRef.current;
+
+      // ------------------------------------------------------------------
+      // Fix #2C: Snapshot each reordered task individually.
+      // ------------------------------------------------------------------
+      const currentTasks = tasksRef.current;
+      for (const item of items) {
+        if (!taskSnapshotsRef.current.has(item.task_id)) {
+          const t = currentTasks.find((t) => t.id === item.task_id);
+          if (t) {
+            taskSnapshotsRef.current.set(item.task_id, { ...t });
+          }
+        }
+      }
+
       try {
         // Optimistic: apply sort_order updates immediately
         setTasks((prev) =>
@@ -160,9 +213,24 @@ export function useRoadmap(): {
           }),
         );
         await reorderTasks(token, items);
+        // Success — clear snapshots
+        for (const item of items) {
+          taskSnapshotsRef.current.delete(item.task_id);
+        }
       } catch (e) {
         setError((e as Error).message);
-        setTasks(snapshot); // rollback
+        // ------------------------------------------------------------------
+        // Fix #2C: Roll back only the failed tasks individually.
+        // ------------------------------------------------------------------
+        setTasks((prev) =>
+          prev.map((t) => {
+            const snap = taskSnapshotsRef.current.get(t.id);
+            return snap ?? t;
+          }),
+        );
+        for (const item of items) {
+          taskSnapshotsRef.current.delete(item.task_id);
+        }
       }
     },
     [token],
